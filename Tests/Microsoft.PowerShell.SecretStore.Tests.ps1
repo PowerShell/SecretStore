@@ -298,7 +298,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
 
         It "Verifies Hashtable read from local store" {
-            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
+            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -AsPlainText -ErrorVariable err
             $err.Count | Should -Be 0
             $ht.Blob.Count | Should -Be 2
             $ht.Str | Should -BeExactly "Hello"

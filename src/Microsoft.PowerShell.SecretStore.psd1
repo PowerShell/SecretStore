@@ -6,7 +6,7 @@
 # Script module or binary module file associated with this manifest.
 RootModule = '.\Microsoft.PowerShell.SecretStore.dll'
 
-NestedModules = @('.\SecretManagementExtension')
+NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 
 # Version number of this module.
 ModuleVersion = '0.4.0'
