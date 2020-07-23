@@ -10,22 +10,31 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             Import-Module -Name Microsoft.PowerShell.SecretManagement
         }
 
-        Unregister-SecretVault -Name TestLocalVault -ErrorAction SilentlyContinue
-        Register-SecretVault -Name TestLocalVault -ModuleName ../Microsoft.PowerShell.SecretStore.psd1 -DefaultVault
-        
         if ((Get-Module -Name Microsoft.PowerShell.SecretStore -ErrorAction Ignore) -eq $null)
         {
             Import-Module -Name ..\Microsoft.PowerShell.SecretStore.psd1
         }
 
+        <#
+        $choices = @(
+            [System.Management.Automation.Host.ChoiceDescription]::new('Yes'),
+            [System.Management.Automation.Host.ChoiceDescription]::new('No'))
+        $choice = $host.UI.PromptForChoice(
+            "!!! These tests will remove all secrets in the store for the current user !!!",
+            "Type 'Yes' to continue",
+            $choices,
+            1)
+        if ($choice -eq 1)
+        {
+            # User choosed not to run tests
+            throw 'Tests aborted'
+        }
+        #>
+
         # Reset the local store and configure it for no-password access
-        # TODO: This deletes all local store data!!
+        # This deletes all local store data!!
+        Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
         Reset-LocalStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout: -1 -DoNotPrompt -Force
-    }
-
-    AfterAll {
-
-        Unregister-SecretVault -Name TestLocalVault -ErrorAction SilentlyContinue
     }
 
     Context "Local Store file permission tests" {
@@ -138,188 +147,313 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
     Context "Local Store Vault Byte[] type" {
 
-        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("Hello!!!")
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("TestBytesStringToTest")
+        $errorMsg = ""
 
         It "Verifies byte[] write to local store" {
-            Set-Secret -Name __Test_ByteArray_ -Secret $bytesToWrite -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $bytesToWrite,
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
         }
 
         It "Verifes byte[] read from local store" {
-            $bytesRead = Get-Secret -Name __Test_ByteArray_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            [System.Text.Encoding]::UTF8.GetString($bytesRead) | Should -BeExactly "Hello!!!"
-        }
-
-        It "Verifes byte[] clobber error in local store" {
-            { Set-Secret -Name __Test_ByteArray_ -Secret $bytesToWrite -Vault TestLocalVault -NoClobber } | Should -Throw -ErrorId "AddSecretAlreadyExists"
+            $outBytes = $null;
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outBytes,
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            [System.Text.Encoding]::UTF8.GetString($outBytes) | Should -BeExactly "TestBytesStringToTest"
         }
 
         It "Verifies byte[] enumeration from local store" {
-            $blobInfo = Get-SecretInfo -Name __Test_ByteArray_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            $blobInfo.Name | Should -BeExactly "__Test_ByteArray_"
-            $blobInfo.Type | Should -BeExactly "ByteArray"
-            $blobInfo.VaultName | Should -BeExactly "TestLocalVault"
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Name | Should -BeExactly $secretName
+            $outInfo.Type | Should -BeExactly "ByteArray"
+            $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
         It "Verifies Remove byte[] secret" {
-            { Remove-Secret -Name __Test_ByteArray_ -Vault TestLocalVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
-            { Get-Secret -Name __Test_ByteArray_ -Vault TestLocalVault -ErrorAction Stop } | Should -Throw -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $secretName,
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be "" 
+
+            $outBytes = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outBytes,
+                [ref] $errorMsg)
+            $success | Should -BeFalse -Because "Secret has been removed."
         }
     }
 
     Context "Local Store Vault String type" {
 
-        It "Verifes string write to local store" {
-            Set-Secret -Name __Test_String_ -Secret "Hello!!Secret" -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+        $stringToWrite = "TestStoreString"
+        $errorMsg = ""
+
+        It "Verifes String write to local store" {
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $stringToWrite,
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
         }
 
-        It "Verifies string read from local store" {
-            $strRead = Get-Secret -Name __Test_String_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            ($strRead -is [SecureString]) | Should -BeTrue
-
-            $strRead = Get-Secret -Name __Test_String_ -Vault TestLocalVault -AsPlainText -ErrorVariable err
-            $err.Count | Should -Be 0
-            $strRead | Should -BeExactly "Hello!!Secret"
+        It "Verifies String read from local store" {
+            $outString = $null;
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outString,
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outString | Should -BeExactly $stringToWrite
         }
 
-        It "Verifies string enumeration from local store" {
-            $strInfo = Get-SecretInfo -Name __Test_String_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            $strInfo.Name | Should -BeExactly "__Test_String_"
-            $strInfo.Type | Should -BeExactly "String"
-            $strInfo.VaultName | Should -BeExactly "TestLocalVault"
+        It "Verifies String enumeration from local store" {
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Name | Should -BeExactly $secretName
+            $outInfo.Type | Should -BeExactly "String"
+            $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
-        It "Verifies string remove from local store" {
-            { Remove-Secret -Name __Test_String_ -Vault TestLocalVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
-            { Get-Secret -Name __Test_String_ -Vault TestLocalVault -ErrorAction Stop } | Should -Throw -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
+        It "Verifies String remove from local store" {
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $secretName,
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be "" 
+
+            $outString = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outString,
+                [ref] $errorMsg)
+            $success | Should -BeFalse -Because "Secret has been removed."
         }
     }
 
     Context "Local Store Vault SecureString type" {
 
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
-            $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+        $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+        $errorMsg = ""
 
         It "Verifies SecureString write to local store" {
-            Set-Secret -Name __Test_SecureString_ -Secret $secureStringToWrite -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $secureStringToWrite,
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
         }
 
         It "Verifies SecureString read from local store" {
-            $ssRead = Get-Secret -Name __Test_SecureString_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            [System.Net.NetworkCredential]::new('',$ssRead).Password | Should -BeExactly $randomSecret
+            $outSecureString = $null;
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outSecureString,
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outString | Should -BeExactly $stringToWrite
+            [System.Net.NetworkCredential]::new('',$outSecureString).Password | Should -BeExactly $randomSecret
         }
 
         It "Verifies SecureString enumeration from local store" {
-            $ssInfo = Get-SecretInfo -Name __Test_SecureString_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            $ssInfo.Name | Should -BeExactly "__Test_SecureString_"
-            $ssInfo.Type | Should -BeExactly "SecureString"
-            $ssInfo.VaultName | Should -BeExactly "TestLocalVault"
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Name | Should -BeExactly $secretName
+            $outInfo.Type | Should -BeExactly "SecureString"
+            $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
         It "Verifies SecureString remove from local store" {
-            { Remove-Secret -Name __Test_SecureString_ -Vault TestLocalVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
-            { Get-Secret -Name __Test_SecureString_ -Vault TestLocalVault -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
-        }
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $secretName,
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be "" 
 
-        It "Verifies SecureString write with alternate parameter set" {
-            Set-Secret -Name __Test_SecureStringA_ -SecureStringSecret $secureStringToWrite -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-        }
-
-        It "Verifies SecureString read from alternate parameter set" {
-            $ssRead = Get-Secret -Name __Test_SecureStringA_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            [System.Net.NetworkCredential]::new('',$ssRead).Password | Should -BeExactly $randomSecret
-        }
-
-        It "Verifes SecureString remove from alternate parameter set" {
-            { Remove-Secret -Name __Test_SecureStringA_ -Vault TestLocalVault -ErrorVariable err } | Should -Not -Throw
-            $err.Count | Should -Be 0
+            $outSecureString = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outSecureString,
+                [ref] $errorMsg)
+            $success | Should -BeFalse -Because "Secret has been removed."
         }
     }
 
     Context "Local Store Vault PSCredential type" {
 
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
+        $errorMsg = ""
 
         It "Verifies PSCredential type write to local store" {
             $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
-            Set-Secret -Name __Test_PSCredential_ -Secret $cred -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $cred,
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
         }
 
         It "Verifies PSCredential read from local store" {
-            $cred = Get-Secret -Name __Test_PSCredential_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            $cred.UserName | Should -BeExactly "UserL"
-            [System.Net.NetworkCredential]::new('', ($cred.Password)).Password | Should -BeExactly $randomSecret
+            $outCred = $null;
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outCred,
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outString | Should -BeExactly $stringToWrite
+            $outCred.UserName | Should -BeExactly "UserL"
+            [System.Net.NetworkCredential]::new('', ($outCred.Password)).Password | Should -BeExactly $randomSecret
         }
 
         It "Verifies PSCredential enumeration from local store" {
-            $credInfo = Get-SecretInfo -Name __Test_PSCredential_ -Vault TestLocalVault -ErrorVariable err
-            $credInfo.Name | Should -BeExactly "__Test_PSCredential_"
-            $credInfo.Type | Should -BeExactly "PSCredential"
-            $credInfo.VaultName | Should -BeExactly "TestLocalVault"
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Name | Should -BeExactly $secretName
+            $outInfo.Type | Should -BeExactly "PSCredential"
+            $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
         It "Verifies PSCredential remove from local store" {
-            Remove-Secret -Name __Test_PSCredential_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name __Test_PSCredential_ -Vault TestLocalVault -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $secretName,
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be "" 
+
+            $outCred = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outCred,
+                [ref] $errorMsg)
+            $success | Should -BeFalse -Because "Secret has been removed."
         }
     }
 
     Context "Local Store Vault Hashtable type" {
+
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecretA = [System.IO.Path]::GetRandomFileName()
         $randomSecretB = [System.IO.Path]::GetRandomFileName()
+        $errorMsg = ""
 
         It "Verifies Hashtable type write to local store" {
             $ht = @{
                 Blob = ([byte[]] @(1,2))
-                Str = "Hello"
+                Str = "TestHashtableString"
                 SecureString = (ConvertTo-SecureString $randomSecretA -AsPlainText -Force)
                 Cred = ([pscredential]::New("UserA", (ConvertTo-SecureString $randomSecretB -AsPlainText -Force)))
             }
-            Set-Secret -Name __Test_Hashtable_ -Secret $ht -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
+
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $ht,
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
         }
 
         It "Verifies Hashtable read from local store" {
-            $ht = Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -AsPlainText -ErrorVariable err
-            $err.Count | Should -Be 0
-            $ht.Blob.Count | Should -Be 2
-            $ht.Str | Should -BeExactly "Hello"
-            [System.Net.NetworkCredential]::new('', ($ht.SecureString)).Password | Should -BeExactly $randomSecretA
-            $ht.Cred.UserName | Should -BeExactly "UserA"
-            [System.Net.NetworkCredential]::New('', ($ht.Cred.Password)).Password | Should -BeExactly $randomSecretB
+            $outHT = $null;
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outHT,
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outHT.Blob.Count | Should -Be 2
+            $outHT.Str | Should -BeExactly "TestHashtableString"
+            [System.Net.NetworkCredential]::new('', ($outHT.SecureString)).Password | Should -BeExactly $randomSecretA
+            $outHT.Cred.UserName | Should -BeExactly "UserA"
+            [System.Net.NetworkCredential]::New('', ($outHT.Cred.Password)).Password | Should -BeExactly $randomSecretB
         }
 
         It "Verifies Hashtable enumeration from local store" {
-            $htInfo = Get-SecretInfo -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            $htInfo.Name | Should -BeExactly "__Test_Hashtable_"
-            $htInfo.Type | Should -BeExactly "Hashtable"
-            $htInfo.VaultName | Should -BeExactly "TestLocalVault"
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Name | Should -BeExactly $secretName
+            $outInfo.Type | Should -BeExactly "Hashtable"
+            $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
         It "Verifies Hashtable remove from local store" {
-            Remove-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorVariable err
-            $err.Count | Should -Be 0
-            { Get-Secret -Name __Test_Hashtable_ -Vault TestLocalVault -ErrorAction Stop } | Should -Throw `
-                -ErrorId 'GetSecretNotFound,Microsoft.PowerShell.SecretManagement.GetSecretCommand'
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+                $secretName,
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be "" 
+
+            $outHT = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+                $secretName,
+                [ref] $outHT,
+                [ref] $errorMsg)
+            $success | Should -BeFalse -Because "Secret has been removed."
         }
     }
 }
