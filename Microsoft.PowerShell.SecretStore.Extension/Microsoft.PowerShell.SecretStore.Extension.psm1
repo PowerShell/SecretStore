@@ -206,6 +206,55 @@ function Test-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    # TODO: Implement
-    return $true
+    $secretName = [System.IO.Path]::GetRandomFileName()
+    $secret = [System.IO.Path]::GetRandomFileName()
+
+    # Setting a secret
+    $errorMsg = ""
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+        $secretName,
+        $secret,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to write secret on vault $VaultName with error: $errorMsg"
+        return $success
+    }
+
+    # Getting secret info
+    $errorMsg = ""
+    $result = $null
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+        $secretName,
+        [ref] $result,
+        $VaultName,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to get secret information on vault $VaultName with error: $errorMsg"
+    }
+
+    # Getting secret value
+    $errorMsg = ""
+    $result = $null
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
+        $secretName,
+        [ref] $result,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to get secret on vault $VaultName with error: $errorMsg"
+    }
+
+    # Removing secret
+    $errorMsg = ""
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
+        $secretName,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to remove secret on vault $VaultName with error: $errorMsg"
+    }
+
+    return $success
 }
