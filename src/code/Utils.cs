@@ -789,9 +789,9 @@ namespace Microsoft.PowerShell.SecretStore
         @{
             ConfigData =
             @{
-                StoreScope='LocalScope'
+                StoreScope='CurrentUser'
                 PasswordRequired=$true
-                PasswordTimeout=-1,
+                PasswordTimeout=900
                 DoNotPrompt=$false
             }
             MetaData =

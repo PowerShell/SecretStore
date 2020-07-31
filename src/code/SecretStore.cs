@@ -1,25 +1,22 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using Microsoft.PowerShell.SecretManagement;
 using System;
-using System.Collections;
-using System.Globalization;
 using System.Management.Automation;
 using System.Security;
 
 namespace Microsoft.PowerShell.SecretStore
 {
-    #region Unlock-LocalStore
+    #region Unlock-SecretStore
 
     /// <summary>
     /// Sets the local store password for the current session.
     /// Password will remain in effect for the session until the timeout expires.
     /// The password timeout is set in the local store configuration.
     /// </summary>
-    [Cmdlet(VerbsCommon.Unlock, "LocalStore",
+    [Cmdlet(VerbsCommon.Unlock, "SecretStore",
         DefaultParameterSetName = SecureStringParameterSet)]
-    public sealed class UnlockLocalStoreCommand : PSCmdlet
+    public sealed class UnlockSecretStoreCommand : PSCmdlet
     {
         #region Members
 
@@ -69,13 +66,13 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Update-LocalStorePassword
+    #region Update-SecretStorePassword
 
     /// <summary>
     /// Updates the local store password to the new password provided.
     /// </summary>
-    [Cmdlet(VerbsData.Update, "LocalStorePassword")]
-    public sealed class UpdateLocalStorePasswordCommand : PSCmdlet
+    [Cmdlet(VerbsData.Update, "SecretStorePassword")]
+    public sealed class UpdateSecretStorePasswordCommand : PSCmdlet
     {
         #region Overrides
 
@@ -102,11 +99,11 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Get-LocalStoreConfiguration
+    #region Get-SecretStoreConfiguration
 
-    [Cmdlet(VerbsCommon.Get, "LocalStoreConfiguration")]
+    [Cmdlet(VerbsCommon.Get, "SecretStoreConfiguration")]
     [OutputType(typeof(SecureStoreConfig))]
-    public sealed class GetLocalStoreConfiguration : PSCmdlet
+    public sealed class GetSecretStoreConfiguration : PSCmdlet
     {
         #region Overrides
 
@@ -121,12 +118,12 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Set-LocalStoreConfiguration
+    #region Set-SecretStoreConfiguration
 
-    [Cmdlet(VerbsCommon.Set, "LocalStoreConfiguration", DefaultParameterSetName = ParameterSet,
+    [Cmdlet(VerbsCommon.Set, "SecretStoreConfiguration", DefaultParameterSetName = ParameterSet,
         SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.High)]
     [OutputType(typeof(SecureStoreConfig))]
-    public sealed class SetLocalStoreConfiguration : PSCmdlet
+    public sealed class SetSecretStoreConfiguration : PSCmdlet
     {
         #region Members
 
@@ -215,12 +212,12 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Reset-LocalStore
+    #region Reset-SecretStore
 
-    [Cmdlet(VerbsCommon.Reset, "LocalStore", 
+    [Cmdlet(VerbsCommon.Reset, "SecretStore", 
         SupportsShouldProcess = true, ConfirmImpact = ConfirmImpact.High)]
     [OutputType(typeof(SecureStoreConfig))]
-    public sealed class ResetLocalStoreCommand : PSCmdlet
+    public sealed class ResetSecretStoreCommand : PSCmdlet
     {
         #region Parmeters
 
