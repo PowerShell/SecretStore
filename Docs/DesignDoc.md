@@ -3,11 +3,10 @@
 ## Description
 
 The Microsoft.PowerShell.SecretStore is a PowerShell module extension vault for Microsoft.PowerShell.SecretManagement.
-It is a secure storage solution that stores secret data on a local machine.
-It is based on .NET crypto APIs, and works on all PowerShell supported platforms for Windows, Linux, macOS.  
+It is a secure storage solution that stores secret data on the local machine.
+It is based on .NET cryptography APIs, and works on all PowerShell supported platforms for Windows, Linux, macOS.  
 
-Secret data is stored at rest in encrypted form on the file system.
-Secret data remains encrypted in memory, and is decrypted only when returned to a user query.  
+Secret data is stored at rest in encrypted form on the file system, and decrypted when returned to a user query.  
 
 The store file data integrity is verified using a cryptographic hash embedded in the file.  
 
@@ -15,10 +14,10 @@ The store can be configured to require a password or operate password-less.
 Requiring a password is more secure since password-less operation relies solely on file system protections.
 Password-less operation still encrypts data, but the encryption key is stored on file and is accessible.  
 
-Configuration and data files are stored in user context locations, and have file permissions or access control lists limiting access to user only.  
-Configuration options include password requirement, password timeout, and the ability to prompt user for password in interactive sessions.  
+Configuration and data files are stored in user context locations, and have file permissions or access control lists limiting access to the single user owner.  
+Configuration options include password requirement, password timeout, and the ability to prompt user for a password in interactive sessions.  
 There is an unimplemented configuration option to allow `AllUser` access to the store, instead of `CurrentUser` only access.
-This configuration not supported in the current implementation.  
+This configuration is not supported in the current implementation.  
 
 ## Files
 
@@ -33,12 +32,12 @@ For Non-Windows platforms the location is:
 
 ### Scope
 
-SecretStore was intended to be configurable and work in both user and machine wide scopes.
+SecretStore is intended to be configurable and work in both user and machine wide scopes.
 However, the current implementation supports only `CurrentUser` scope.  
 
 ### File permissions
 
-On Windows platforms, file permissions are determined by an access control list on the containing directory, which restricts all access of the contents to the owning user.  
+On Windows platforms, file permissions are determined by an access control list applied to the containing directory, which restricts all access of the contents to the owning user.  
 
 For Non-Windows platforms, file permissions are set to the owning user only.  
 
@@ -55,8 +54,6 @@ The configuration data is stored on file in a simple json format.
 }
 ```
 
-The configuration file is encrypted with the current user name to prevent casual access or modification of the content.  
-
 ### Data file
 
 The data file structure consists of five main sections:  
@@ -69,11 +66,12 @@ The data file structure consists of five main sections:
 
 - Secret metadata json   (Information about each secret item)
 
-- Secret data blob       (Individual secret values)
+- Secret data blob       (sequence of individual secret values)
 
-The file data hash is a cryptographic hash of the key, iv, metadata, data, and is used verify file content integrity.  
+The file data hash is a cryptographic hash of the key, iv, metadata, data, and is used to verify file content integrity.  
 
-The metadata is a json structure that contains information about each secret.  
+The metadata is a json structure that contains information about each secret.
+It includes secret name, type, optional attributes, and encrypted blob size and offset information.  
 
 ```json
 {
@@ -99,26 +97,83 @@ The metadata is a json structure that contains information about each secret.
 ```
 
 The data blob is a byte array containing all secret values.
-The metadata offset and size fields are used to extract the specific secret value blob.
-Each secret value blob is individually encrypted.  
-
-Both metadata and data blob secrets are encrypted with the encryption key, or the encryption key plus password, if password configuration is enabled.  
+The metadata offset and size fields are used to extract the specific encrypted secret value from the data blob.  
 
 ## Encryption
 
-All encryption is performed using the .NET Core crypto APIs to ensure cross platform operation.
+All encryption is performed using the .NET Core cryptography APIs to ensure cross platform operation.
 Both the configuration file and data files are encrypted.  
 
+### Configuration file encryption
+
 The configuration file encryption is different than the data file.
-Configuration information determines whether a password is required and that must be known password based decryption can be performed.
+Configuration information determines whether a password is required, and that information must be known before password based decryption can be performed.
 So the configuration file is encrypted with the current user name.
-This is not intended to be strong protection, but instead is a defense-in-depth measure to prevent casual access and modification of configuration data.  
+This is a defense-in-depth measure to prevent casual access and modification of configuration data.  
 
+### Data file encryption
 
+The data file uses symmetric encryption with an Aes 256 key.
+The Aes key, along with an iv value, is stored in the data file along with the secret data  and metadata.
+If a password is required, then a new Aes key is cryptographically derived from the stored Aes key plus the provided password, and the derived key is used for encryption.
+For password-less operation, the stored Aes key itself is used for encryption.  
 
-## Data integrity
+The metadata is decrypted and read into memory.
+Metadata does not include the actual secret values, so it remains in memory un-encrypted.
+The secret data blob is also read into memory, but each individually encrypted secret remains encrypted until returned in a user query response.  
+
+## Data file integrity
+
+The integrity of the data file contents is verified through a cryptographic hash computed over all the data file contents: key blob, iv blob, metadata json, data blob.  
+If a password is required, then the hash value is computed based on a salt value and the provided password.
+If no password is required, then the hash value is computed with the salt value and the current user name.  
 
 ## Configuration
 
+Requiring a password, password timeout, and user prompting are all configuration options for SecretStore.
+The default configuration requires a password for best security, allows the user to be prompted in interactive sessions, and sets the session password timeout to 15 minutes.  
 
+For non-interactive automation scenarios, the `Do Not Prompt` option can be configured, to suppress user prompting.
+In this case a `Microsoft.PowerShell.SecretStore.PasswordRequiredException` exception is thrown if there is no valid session password.
+The `Unlock-SecretStore` cmdlet can be used to set the password for the current PowerShell session.
+The password will remain valid until the password timeout expires.  
 
+## Security
+
+SecretStore security depends on the selected configuration options.  
+
+### Password required
+
+The strongest security is when a password is required.
+The password is used to encrypt both metadata and data on file.
+This protects the data from being read by other system users.
+It also protects the data from exposure if the physical media containing the data files is lost.  
+
+### No password required
+
+If SecretStore is configured with no password required, data is still encrypted as before.
+The difference is that data encryption is performed with an Aes key that is stored on file.
+Whereas a password is protected by the user, the Aes key is protected only by the file system.
+The file system protects the secret data from other low privilege users.
+But admin or root users will be able to discover the key and access the secrets.
+So security is clearly not as strong when compared to password protection.  
+
+### Data encryption
+
+Secret metadata is not considered sensitive and so it is decrypted once and remains in memory un-encrypted.
+But secret value blobs are individually encrypted and remain encrypted after being read into memory.
+Secret values are decrypted only when returned to a user from a query.  
+
+### Data integrity
+
+SecretStore data integrity is protected through a computed hash value stored in the file.
+Data integrity is verified whenever data is read from file.
+If a password is being used, the hash value is computed using it.
+Otherwise, the current user name is used to compute the hash value.  
+
+### Configuration information
+
+Meddling with the configuration file can prevent SecretStore from operating correctly, and thus be used as a denial of service (DOS) attack.
+For example, if the `PasswordRequired` field is changed, the store data integrity check will fail, preventing access to secret data.
+StoreFile relies on the file system to protect the configuration file.
+But the configuration file is also encrypted with the user name to prevent inadvertent disclosure or modification.  
