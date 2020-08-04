@@ -114,7 +114,7 @@ This is a defense-in-depth measure to prevent casual access and modification of 
 ### Data file encryption
 
 The data file uses symmetric encryption with an AES 256 key.
-The Aes key, along with an iv value, is stored in the data file along with the secret data  and metadata.
+The AES key, along with an iv value, is stored in the data file along with the secret data  and metadata.
 If a password is required, then a new Aes key is cryptographically derived from the stored Aes key plus the provided password, and the derived key is used for encryption.
 For password-less operation, the stored Aes key itself is used for encryption.  
 
