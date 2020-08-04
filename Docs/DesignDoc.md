@@ -135,7 +135,7 @@ The default configuration requires a password for best security, allows the user
 
 For non-interactive automation scenarios, the `Do Not Prompt` option can be configured, to suppress user prompting.
 In this case a `Microsoft.PowerShell.SecretStore.PasswordRequiredException` exception is thrown if there is no valid session password.
-The `Unlock-SecretStore` cmdlet can be used to set the password for the current PowerShell session.
+The `Unlock-SecretStore` cmdlet can be used (typically by automation) to provide the password for the current PowerShell session.
 The password will remain valid until the password timeout expires.  
 
 ## Security
