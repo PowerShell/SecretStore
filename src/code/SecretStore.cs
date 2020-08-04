@@ -170,7 +170,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             if (!Force && !ShouldProcess(
-                target: "SecretManagement module local store",
+                target: "SecretStore module local store",
                 action: "Changes local store configuration"))
             {
                 return;
@@ -253,13 +253,13 @@ namespace Microsoft.PowerShell.SecretStore
                         this));
             }
 
-            WriteWarning("This operation will completely remove all SecretManagement module local store secrets and configuration settings, making any registered vault inoperable.");
+            WriteWarning("!!This operation will completely remove all SecretStore module secrets and reset configuration settings to default values!!");
         }
 
         protected override void EndProcessing()
         {
             if (!Force && !ShouldProcess(
-                target: "SecretManagement module local store",
+                target: "SecretStore module local store",
                 action: "Erase all secrets in the local store and reset the configuration settings"))
             {
                 return;
