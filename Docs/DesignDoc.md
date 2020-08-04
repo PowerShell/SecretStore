@@ -25,7 +25,7 @@ Configuration and data are stored in separate files.
 File location depends on the platform OS.  
 
 For Windows platforms the location is:  
-`%USERPROFILE%\AppData\Local\Microsoft\PowerShell\secretmanagement\localstore\`  
+`$env:USERPROFILE\AppData\Local\Microsoft\PowerShell\secretmanagement\localstore\`  
 
 For Non-Windows platforms the location is:  
 `~/.secretmanagement/localstore/`
@@ -37,9 +37,34 @@ However, the current implementation supports only `CurrentUser` scope.
 
 ### File permissions
 
-On Windows platforms, file permissions are determined by an access control list applied to the containing directory, which restricts all access of the contents to the owning user.  
+#### Windows platform
 
-For Non-Windows platforms, file permissions are set to the owning user only.  
+On Windows platforms, file permissions are determined by an access control list, which restricts all access of the contents to the current user.
+Default access rules of the `localstore` containing directory are removed, and the following access rules are applied:  
+
+- Full control of the `localstore` directory is given to the current user only.   
+
+- Full control of any child directories and files of the `localstore` directory is given to the current user only.  
+
+- A protection rule is added that prevents the `localstore` directory from inheriting any rules from parent directories.  
+
+- The owner of the security descriptor for the `localstore` directory is set to the current user.  
+
+#### Non-Windows platforms
+
+For Non-Windows platforms, file permissions are set to the owning user only using the `chmod` command.
+The following file access permissions are set:  
+
+```csharp
+    /*
+    Current user is user owner.
+    Current user is group owner.
+    Permission for user dir owner:      rwx    (execute for directories only)
+    Permission for user file owner:     rw-    (no file execute)
+    Permissions for group owner:        ---    (no access)
+    Permissions for others:             ---    (no access)
+    */
+```
 
 ### Configuration file
 
@@ -113,10 +138,10 @@ This is a defense-in-depth measure to prevent casual access and modification of 
 
 ### Data file encryption
 
-The data file uses symmetric encryption with an Aes 256 key.
-The Aes key, along with an iv value, is stored in the data file along with the secret data  and metadata.
-If a password is required, then a new Aes key is cryptographically derived from the stored Aes key plus the provided password, and the derived key is used for encryption.
-For password-less operation, the stored Aes key itself is used for encryption.  
+The data file uses symmetric encryption with an AES 256 key.
+The AES key, along with an iv value, is stored in the data file along with the secret data  and metadata.
+If a password is required, then a new AES key is cryptographically derived from the stored AES key plus the provided password, and the derived key is used for encryption.
+For password-less operation, the stored AES key itself is used for encryption.  
 
 The metadata is decrypted and read into memory.
 Metadata does not include the actual secret values, so it remains in memory un-encrypted.
@@ -152,8 +177,8 @@ It also protects the data from exposure if the physical media containing the dat
 ### No password required
 
 If SecretStore is configured with no password required, data is still encrypted as before.
-The difference is that data encryption is performed with an Aes key that is stored on file.
-Whereas a password is protected by the user, the Aes key is protected only by the file system.
+The difference is that data encryption is performed with an AES key that is stored on file.
+Whereas a password is protected by the user, the AES key is protected only by the file system.
 The file system protects the secret data from other low privilege users.
 But admin or root users will be able to discover the key and access the secrets.
 So security is clearly not as strong when compared to password protection.  
