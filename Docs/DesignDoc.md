@@ -25,7 +25,7 @@ Configuration and data are stored in separate files.
 File location depends on the platform OS.  
 
 For Windows platforms the location is:  
-`%USERPROFILE%\AppData\Local\Microsoft\PowerShell\secretmanagement\localstore\`  
+`$env:USERPROFILE\AppData\Local\Microsoft\PowerShell\secretmanagement\localstore\`  
 
 For Non-Windows platforms the location is:  
 `~/.secretmanagement/localstore/`
