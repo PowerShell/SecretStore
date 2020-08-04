@@ -18,7 +18,7 @@ SecretStore can also be configured to prompt the user for the password if needed
 When a password is provided, it applies only to the current PowerShell session and only for a limited time.
 The password timeout time is also configurable and set to 15 minutes by default.
 Password prompting is useful when SecretStore is used interactively.
-For automation scenarios, password prompting can be disabled.  
+For automation scenarios, password prompting can be disabled and will instead return an error.
 
 If password prompting is disabled and a password is required to access secrets, a Microsoft.PowerShell.SecretStore.PasswordRequiredException will be thrown.
 In this case, the SecretStore can be unlocked using the `Unlock-LocalStore` cmdlet.  

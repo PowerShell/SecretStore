@@ -139,7 +139,7 @@ This is a defense-in-depth measure to prevent casual access and modification of 
 ### Data file encryption
 
 The data file uses symmetric encryption with an AES 256 key.
-The AES key, along with an iv value, is stored in the data file along with the secret data  and metadata.
+The AES key, along with an iv value, is stored in the data file along with the secret data and metadata.
 If a password is required, then a new AES key is cryptographically derived from the stored AES key plus the provided password, and the derived key is used for encryption.
 For password-less operation, the stored AES key itself is used for encryption.  
 
@@ -160,7 +160,7 @@ The default configuration requires a password for best security, allows the user
 
 For non-interactive automation scenarios, the `Do Not Prompt` option can be configured, to suppress user prompting.
 In this case a `Microsoft.PowerShell.SecretStore.PasswordRequiredException` exception is thrown if there is no valid session password.
-The `Unlock-SecretStore` cmdlet can be used to set the password for the current PowerShell session.
+The `Unlock-SecretStore` cmdlet can be used (typically by automation) to provide the password for the current PowerShell session.
 The password will remain valid until the password timeout expires.  
 
 ## Security
