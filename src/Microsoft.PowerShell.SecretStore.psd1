@@ -38,7 +38,7 @@ A password is required for each user account store.
 PowerShellVersion = '5.1'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = @('Unlock-LocalStore','Update-LocalStorePassword','Get-LocalStoreConfiguration','Set-LocalStoreConfiguration','Reset-LocalStore')
+CmdletsToExport = @('Unlock-SecretStore','Update-SecretStorePassword','Get-SecretStoreConfiguration','Set-SecretStoreConfiguration','Reset-SecretStore')
 
 FunctionsToExport = @()
 

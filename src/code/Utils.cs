@@ -789,9 +789,9 @@ namespace Microsoft.PowerShell.SecretStore
         @{
             ConfigData =
             @{
-                StoreScope='LocalScope'
+                StoreScope='CurrentUser'
                 PasswordRequired=$true
-                PasswordTimeout=-1,
+                PasswordTimeout=900
                 DoNotPrompt=$false
             }
             MetaData =
@@ -2479,11 +2479,12 @@ namespace Microsoft.PowerShell.SecretStore
 
             // Set directory permissions to current user only.
             /*
-                Current user is user owner.
-                Current user is group owner.
-                Permission for user (dir) owner:    rw(x)   (execute for directories only)
-                Permissions for group owner:        ---     (no access)
-                Permissions for others:             ---     (no access)
+            Current user is user owner.
+            Current user is group owner.
+            Permission for user dir owner:      rwx    (execute for directories only)
+            Permission for user file owner:     rw-    (no file execute)
+            Permissions for group owner:        ---    (no access)
+            Permissions for others:             ---    (no access)
             */
             var script = isDirectory ? 
                 string.Format(CultureInfo.InvariantCulture, @"chmod u=rwx,g=---,o=--- {0}", filePath) :
