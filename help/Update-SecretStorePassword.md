@@ -8,7 +8,7 @@ schema: 2.0.0
 # Update-SecretStorePassword
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Replaces the current SecretStore password with a new one.
 
 ## SYNTAX
 
@@ -17,16 +17,27 @@ Update-SecretStorePassword [<CommonParameters>]
 ```
 
 ## DESCRIPTION
-{{ Fill in the Description }}
+This cmdlet updates the password for SecretStore.
+It takes no parameters and prompts the user for both the old and new passwords.
 
 ## EXAMPLES
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> Update-SecretStorePassword
+Old password
+Enter password:
+*******
+New password
+Enter password:
+*******
+Enter password again for verification:
+*******
 ```
 
-{{ Add example description here }}
+This example runs the command with no parameter arguments.
+The user is first prompted for the old password.
+And then prompted for the new password twice for verification.
 
 ## PARAMETERS
 
@@ -39,7 +50,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS
