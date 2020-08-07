@@ -237,22 +237,6 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Exceptions
-
-    public sealed class PasswordRequiredException : InvalidOperationException
-    {
-        #region Constructor
-
-        public PasswordRequiredException(string msg)
-            : base(msg)
-        {
-        }
-
-        #endregion
-    }
-
-    #endregion
-
     #region SecureStore
 
     #region CryptoUtils

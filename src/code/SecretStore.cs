@@ -260,24 +260,17 @@ namespace Microsoft.PowerShell.SecretStore
         {
             if (!Force && !ShouldProcess(
                 target: "SecretStore module local store",
-                action: "Erase all secrets in the local store and reset the configuration settings"))
+                action: "Erase all secrets in the local store and reset the configuration settings to default values"))
             {
                 return;
             }
 
-            SecureStoreConfig oldConfigData;
-            if (!SecureStoreFile.ReadConfigFile(
-                configData: out oldConfigData,
-                out string _))
-            {
-                oldConfigData = SecureStoreConfig.GetDefault();
-            }
-
+            var defaultConfigData = SecureStoreConfig.GetDefault();
             var newConfigData = new SecureStoreConfig(
-                scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : oldConfigData.Scope,
-                passwordRequired: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordRequired)) ? (bool)PasswordRequired : oldConfigData.PasswordRequired,
-                passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : oldConfigData.PasswordTimeout,
-                doNotPrompt: MyInvocation.BoundParameters.ContainsKey(nameof(DoNotPrompt)) ? (bool)DoNotPrompt : oldConfigData.DoNotPrompt);
+                scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : defaultConfigData.Scope,
+                passwordRequired: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordRequired)) ? (bool)PasswordRequired : defaultConfigData.PasswordRequired,
+                passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : defaultConfigData.PasswordTimeout,
+                doNotPrompt: MyInvocation.BoundParameters.ContainsKey(nameof(DoNotPrompt)) ? (bool)DoNotPrompt : defaultConfigData.DoNotPrompt);
 
             if (!SecureStoreFile.RemoveStoreFile(out string errorMsg))
             {

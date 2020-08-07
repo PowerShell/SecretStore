@@ -27,7 +27,7 @@ function Get-Secret
 
             break
         }
-        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
             if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
                 ($count -gt 0))
@@ -77,7 +77,7 @@ function Get-SecretInfo
             
             break
         }
-        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
             if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
                 ($count -gt 0))
@@ -124,7 +124,7 @@ function Set-Secret
                 return
             }
         }
-        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
             if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
                 ($count -gt 0))
@@ -169,7 +169,7 @@ function Remove-Secret
                 return
             }
         }
-        catch [Microsoft.PowerShell.SecretStore.PasswordRequiredException]
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
             if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
                 ($count -gt 0))
