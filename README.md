@@ -21,14 +21,14 @@ Password prompting is useful when SecretStore is used interactively.
 For automation scenarios, password prompting can be disabled and will instead return an error.
 
 If password prompting is disabled and a password is required to access secrets, a Microsoft.PowerShell.SecretStore.PasswordRequiredException will be thrown.
-In this case, the SecretStore can be unlocked using the `Unlock-LocalStore` cmdlet.  
+In this case, the SecretStore can be unlocked using the `Unlock-SecretStore` cmdlet.  
 
 There is also a SecretStore `Scope` setting, but it is currently set to `CurrentUser` and cannot be changed.  
 
 The default configuration is set to for best security and interactive use.  
 
 ```powershell
-Get-LocalStoreConfiguration
+Get-SecretStoreConfiguration
 
       Scope PasswordRequired PasswordTimeout DoNotPrompt
       ----- ---------------- --------------- -----------
@@ -39,24 +39,24 @@ CurrentUser             True             900       False
 
 The SecretStore exports five cmdlets for manipulating configuration and store state.  
 
-#### Get-LocalStoreConfiguration
+#### Get-SecretStoreConfiguration
 
 This cmdlet displays the current configuration.  
 
-#### Set-LocalStoreConfiguration
+#### Set-SecretStoreConfiguration
 
 This cmdlet sets configuration options for SecretStore.
 Individual configuration options can be set, or the store can be configured to default settings by using the `-Default` parameter switch.  
 
 ```powershell
-Set-LocalStoreConfiguration -PasswordTimeout 30
+Set-SecretStoreConfiguration -PasswordTimeout 30
 
       Scope PasswordRequired PasswordTimeout DoNotPrompt
       ----- ---------------- --------------- -----------
 CurrentUser             True              30       False
 ```
 
-#### Unlock-LocalStore
+#### Unlock-SecretStore
 
 This cmdlet unlocks the SecretStore with the provided password.
 The password can be passed in as a `SecureString` type or in plain text.  
