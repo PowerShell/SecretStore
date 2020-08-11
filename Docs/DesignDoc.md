@@ -42,7 +42,7 @@ However, the current implementation supports only `CurrentUser` scope.
 On Windows platforms, file permissions are determined by an access control list, which restricts all access of the contents to the current user.
 Default access rules of the `localstore` containing directory are removed, and the following access rules are applied:  
 
-- Full control of the `localstore` directory is given to the current user only.   
+- Full control of the `localstore` directory is given to the current user only.  
 
 - Full control of any child directories and files of the `localstore` directory is given to the current user only.  
 
