@@ -8,6 +8,8 @@ RootModule = '.\Microsoft.PowerShell.SecretStore.dll'
 
 NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 
+RequiredModules = @('Microsoft.PowerShell.SecretManagement')
+
 # Version number of this module.
 ModuleVersion = '0.4.0'
 
