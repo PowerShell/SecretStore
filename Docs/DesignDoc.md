@@ -79,15 +79,25 @@ The configuration data is stored on file in a simple json format.
 }
 ```
 
-### Data file
+### Key file
 
-The data file structure consists of five main sections:  
+The key file contains the AES 256 key and iv (initialization vector) blobs.
+This key is randomly generated and is used in the encryption of secrets.
+If a password is required, a new encryption key is derived from this key and the password.
+Otherwise, for no-password operation, this key is used alone (or with username?) for encryption.
+The contents of this file is encrypted with current user 'username' to prevent casual disclosure.  
 
-- File data hash
+the key file structure consists of two main sections:
 
 - Encryption key blob    (AES Encryption key)
 
 - Encryption iv blob     (AES initialization vector)
+
+### Data file
+
+The data file structure consists of three main sections:  
+
+- File data hash         (Sha256 hash is computed over secret metadata and data blob)
 
 - Secret metadata json   (Information about each secret item)
 
