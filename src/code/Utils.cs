@@ -276,11 +276,10 @@ namespace Microsoft.PowerShell.SecretStore
             return new AesKey(key, iv);
         }
 
-        public static AesKey GenerateKeyFromPassword(
-            string password)
+        public static AesKey GenerateKeyFromUserName()
         {
             var key = DeriveKeyFromPassword(
-                passwordData: Encoding.UTF8.GetBytes(password),
+                passwordData: Encoding.UTF8.GetBytes(Environment.UserName),
                 keyLength: 32);
 
             var iv = new byte[16];  // Zero IV.
@@ -293,13 +292,13 @@ namespace Microsoft.PowerShell.SecretStore
             AesKey key,
             byte[] data)
         {
-            var keyToUse = (passWord != null) ? DeriveKeyFromSecureString(passWord, key.Key) : key.Key;
+            var keyToUse = DeriveAesKeyFromKeyAndPasswordOrUser(passWord, key);
             try
             {
                 using (var aes = Aes.Create())
                 {
-                    aes.Key = keyToUse;
-                    aes.IV = key.IV;
+                    aes.Key = keyToUse.Key;
+                    aes.IV = keyToUse.IV;
                     using (var encryptor = aes.CreateEncryptor())
                     using (var sourceStream = new MemoryStream(data))
                     using (var targetStream = new MemoryStream())
@@ -315,10 +314,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                if (passWord != null)
-                {
-                    ZeroOutData(keyToUse);
-                }
+                keyToUse.Clear();
             }
         }
 
@@ -327,13 +323,13 @@ namespace Microsoft.PowerShell.SecretStore
             AesKey key,
             byte[] data)
         {
-            var keyToUse = (passWord != null) ? DeriveKeyFromSecureString(passWord, key.Key) : key.Key;
+            var keyToUse = DeriveAesKeyFromKeyAndPasswordOrUser(passWord, key);
             try
             {
                 using (var aes = Aes.Create())
                 {
-                    aes.IV = key.IV;
-                    aes.Key = keyToUse;
+                    aes.Key = keyToUse.Key;
+                    aes.IV = keyToUse.IV;
                     using (var decryptor = aes.CreateDecryptor())
                     using (var sourceStream = new MemoryStream(data))
                     using (var targetStream = new MemoryStream())
@@ -356,10 +352,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             finally
             {
-                if (passWord != null)
-                {
-                    ZeroOutData(keyToUse);
-                }
+                keyToUse.Clear();
             }
         }
 
@@ -409,20 +402,61 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Private methods
 
-        private static byte[] DeriveKeyFromSecureString(
+        private static AesKey DeriveAesKeyFromKeyAndPasswordOrUser(
             SecureString passWord,
-            byte[] key)
+            AesKey key)
         {
-            if (Utils.GetDataFromSecureString(
+            if (!Utils.GetDataFromSecureString(
                 secureString: passWord,
                 data: out byte[] passWordData))
             {
-                return DeriveKeyFromPassword(
-                    passwordData: passWordData,
-                    keyLength: key.Length);
+                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
+            }
+            
+            byte[] newKey = null;
+            byte[] newIV = null;
+            try
+            {
+                using (var derivedBytes = new Rfc2898DeriveBytes(
+                    password: passWordData, 
+                    salt: key.Key, 
+                    iterations: 1000))
+                {
+                    newKey = derivedBytes.GetBytes(key.Key.Length);
+                }
+
+                using (var derivedBytes = new Rfc2898DeriveBytes(
+                    password: passWordData,
+                    salt: key.IV,
+                    iterations: 1000))
+                {
+                    newIV = derivedBytes.GetBytes(key.IV.Length);
+                }
+            }
+            finally
+            {
+                ZeroOutData(passWordData);
             }
 
-            throw new PSInvalidOperationException("Cannot read password SecureString data.");
+            return new AesKey(
+                key: newKey,
+                iv: newIV);
+        }
+
+        private static byte[] DeriveKeyFromPasswordOrUser(
+            SecureString passWord)
+        {
+            // Create hash key with either provided password or current user name.
+            if (!Utils.GetDataFromSecureString(
+                secureString: passWord,
+                data: out byte[] passWordData))
+            {
+                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
+            }
+
+            return DeriveKeyFromPassword(
+                passwordData: passWordData,
+                keyLength: 64);
         }
 
         private static byte[] DeriveKeyFromPassword(
@@ -443,23 +477,6 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 ZeroOutData(passwordData);
             }
-        }
-
-        private static byte[] DeriveKeyFromPasswordOrUser(
-            SecureString passWord)
-        {
-            // Create hash key with either provided password or current user name.
-            byte[] passWordData;
-            if (!Utils.GetDataFromSecureString(
-                secureString: passWord,
-                data: out passWordData))
-            {
-                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
-            }
-
-            return DeriveKeyFromPassword(
-                passwordData: passWordData,
-                keyLength: 64);
         }
 
         private static byte[] ComputeHash(
@@ -840,12 +857,14 @@ namespace Microsoft.PowerShell.SecretStore
 
         public static SecureStoreData CreateEmpty()
         {
-            return new SecureStoreData()
+            var data = new SecureStoreData()
             {
                 Key = CryptoUtils.GenerateKey(),
                 Blob = new byte[0],
                 MetaData = new Dictionary<string, SecureStoreMetadata>(StringComparer.InvariantCultureIgnoreCase)
             };
+
+            return data;
         }
 
         #endregion
@@ -1706,10 +1725,12 @@ namespace Microsoft.PowerShell.SecretStore
 
         private const string StoreFileName = "storefile";
         private const string StoreConfigName = "storeconfig";
+        private const string StoreKeyFileName = "storeaux";
 
         private static readonly string LocalStorePath;
         private static readonly string LocalStoreFilePath;
         private static readonly string LocalConfigFilePath;
+        private static readonly string LocalKeyFilePath;
 
         private static readonly FileSystemWatcher _storeFileWatcher;
         private static readonly Timer _updateEventTimer;
@@ -1727,6 +1748,7 @@ namespace Microsoft.PowerShell.SecretStore
             LocalStorePath = Path.Combine(Utils.SecretManagementLocalPath, "localstore");
             LocalStoreFilePath = Path.Combine(LocalStorePath, StoreFileName);
             LocalConfigFilePath = Path.Combine(LocalStorePath, StoreConfigName);
+            LocalKeyFilePath = Path.Combine(LocalStorePath, StoreKeyFileName);
 
             if (!Directory.Exists(LocalStorePath))
             {
@@ -1861,16 +1883,12 @@ namespace Microsoft.PowerShell.SecretStore
         
         #region Public methods
 
-        // File structure
+        // Data file structure
         /*
         int:    data hash size
         byte[]: data hash
         <Data>
-        int:    key blob size
-        int:    iv blob size
         int:    json blob size
-        byte[]: key blob
-        byte[]: iv blob
         byte[]: json blob
         byte[]: data blob
         </Data>
@@ -1890,30 +1908,10 @@ namespace Microsoft.PowerShell.SecretStore
 
             // Create single file data blob.
             var intSize = sizeof(Int32);
-            var keyBlobSize = data.Key.Key.Length;
-            var ivBlobSize = data.Key.IV.Length;
             var jsonBlobSize = jsonBlob.Length;
-            var fileDataBlobSize = (intSize * 3) + keyBlobSize + ivBlobSize + jsonBlobSize + data.Blob.Length;
+            var fileDataBlobSize = intSize + jsonBlobSize + data.Blob.Length;
             var fileDataBlob = new byte[fileDataBlobSize];
             var index = 0;
-
-            // Copy key size.
-            Buffer.BlockCopy(
-                src: BitConverter.GetBytes(keyBlobSize),
-                srcOffset: 0,
-                dst: fileDataBlob,
-                dstOffset: index,
-                count: intSize);
-            index += intSize;
-
-            // Copy iv size.
-            Buffer.BlockCopy(
-                src: BitConverter.GetBytes(ivBlobSize),
-                srcOffset: 0,
-                dst: fileDataBlob,
-                dstOffset: index,
-                count: intSize);
-            index += intSize;
             
             // Copy json blob size.
             Buffer.BlockCopy(
@@ -1923,24 +1921,6 @@ namespace Microsoft.PowerShell.SecretStore
                 dstOffset: index,
                 count: intSize);
             index += intSize;
-
-            // Copy key blob.
-            Buffer.BlockCopy(
-                src: data.Key.Key,
-                srcOffset: 0,
-                dst: fileDataBlob,
-                dstOffset: index,
-                count: keyBlobSize);
-            index += keyBlobSize;
-
-            // Copy iv blob.
-            Buffer.BlockCopy(
-                src: data.Key.IV,
-                srcOffset: 0,
-                dst: fileDataBlob,
-                dstOffset: index,
-                count: ivBlobSize);
-            index += ivBlobSize;
 
             // Copy json blob.
             Buffer.BlockCopy(
@@ -1970,6 +1950,16 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 try
                 {
+                    if (!Utils.IsWindows && !File.Exists(LocalKeyFilePath))
+                    {
+                        // Non-Windows platform file permissions must be set individually.
+                        // Windows platform file ACLs are inherited from containing directory.
+                        using (File.Create(LocalKeyFilePath)) { }
+                        SetFilePermissions(
+                            filePath: LocalConfigFilePath,
+                            isDirectory: false);
+                    }
+
                     if (!Utils.IsWindows && !File.Exists(LocalStoreFilePath))
                     {
                         // Non-Windows platform file permissions must be set individually.
@@ -1982,7 +1972,14 @@ namespace Microsoft.PowerShell.SecretStore
 
                     // Write to file.
                     using (var fileStream = File.OpenWrite(LocalStoreFilePath))
+                    using (var keyFileStream = File.OpenWrite(LocalKeyFilePath))
                     {
+                        // Write to keyfile.
+                        WriteKeyFile(
+                            fs: keyFileStream,
+                            key: data.Key);
+
+                        // Write to datafile.
                         fileStream.Seek(0, 0);
 
                         // Write hash length and hash to file.
@@ -2028,7 +2025,6 @@ namespace Microsoft.PowerShell.SecretStore
                 }
 
                 System.Threading.Thread.Sleep(250);
-
             } while (++count < 4);
 
             errorMsg = string.Format(
@@ -2049,6 +2045,14 @@ namespace Microsoft.PowerShell.SecretStore
             if (!File.Exists(LocalStoreFilePath))
             {
                 errorMsg = "NoFile";
+                return false;
+            }
+
+            // Read encryption key from file.
+            if (!ReadKeyFile(
+                key: out AesKey key,
+                errorMsg: out errorMsg))
+            {
                 return false;
             }
 
@@ -2101,12 +2105,12 @@ namespace Microsoft.PowerShell.SecretStore
 
             } while (++count < 4);
 
-            if (exFail != null || hash == null || fileDataBlob == null)
+            if (hash == null || fileDataBlob == null)
             {
                 errorMsg = string.Format(
                     CultureInfo.InvariantCulture,
                     @"Unable to read from local store file with error: {0}",
-                    (exFail != null) ? exFail.Message : string.Empty);
+                    exFail?.Message ?? string.Empty);
 
                 return false;
             }
@@ -2121,7 +2125,7 @@ namespace Microsoft.PowerShell.SecretStore
                 return false;
             }
 
-            // Extract key blob size.
+            // Extract json blob size.
             var index = 0;
             Buffer.BlockCopy(
                 src: fileDataBlob,
@@ -2130,51 +2134,7 @@ namespace Microsoft.PowerShell.SecretStore
                 dstOffset: 0,
                 count: intSize);
             index += intSize;
-            var keyBlobSize = BitConverter.ToInt32(intField, 0);
-
-            // Extract iv blob size.
-            Buffer.BlockCopy(
-                src: fileDataBlob,
-                srcOffset: index,
-                dst: intField,
-                dstOffset: 0,
-                count: intSize);
-            index += intSize;
-            var ivBlobSize = BitConverter.ToInt32(intField, 0);
-
-            // Extract json blob size.
-            Buffer.BlockCopy(
-                src: fileDataBlob,
-                srcOffset: index,
-                dst: intField,
-                dstOffset: 0,
-                count: intSize);
-            index += intSize;
             var jsonBlobSize = BitConverter.ToInt32(intField, 0);
-
-            // Extract key blob
-            var keyBlob = new byte[keyBlobSize];
-            Buffer.BlockCopy(
-                src: fileDataBlob,
-                srcOffset: index,
-                dst: keyBlob,
-                dstOffset: 0,
-                count: keyBlobSize);
-            index += keyBlobSize;
-
-            // Extract iv blob
-            var ivBlob = new byte[ivBlobSize];
-            Buffer.BlockCopy(
-                src: fileDataBlob,
-                srcOffset: index,
-                dst: ivBlob,
-                dstOffset: 0,
-                count: ivBlobSize);
-            index += ivBlobSize;
-
-            var key = new AesKey(
-                key: keyBlob,
-                iv: ivBlob);
 
             // Extract json blob
             var jsonBlob = new byte[jsonBlobSize];
@@ -2193,7 +2153,7 @@ namespace Microsoft.PowerShell.SecretStore
                     data: jsonBlob));
 
             // Extract data blob
-            var dataBlobSize = (fileDataBlob.Length - (keyBlobSize + ivBlobSize + jsonBlobSize +(intSize * 3)));
+            var dataBlobSize = (fileDataBlob.Length - (jsonBlobSize + intSize));
             var dataBlob = new byte[dataBlobSize];
             Buffer.BlockCopy(
                 src: fileDataBlob,
@@ -2215,27 +2175,21 @@ namespace Microsoft.PowerShell.SecretStore
             SecureStoreConfig configData,
             out string errorMsg)
         {
-            AesKey key = null;
+            // Encrypt config json data.
+            var jsonStr = configData.ConvertToJson();
+            var encryptKey = CryptoUtils.GenerateKeyFromUserName();
+            var jsonEncrypted = CryptoUtils.EncryptWithKey(
+                passWord: null,
+                key: encryptKey,
+                Encoding.UTF8.GetBytes(jsonStr));
+            encryptKey.Clear();
+
             var count = 0;
             Exception exFail = null;
             do
             {
                 try
                 {
-                    var jsonStr = configData.ConvertToJson();
-
-                    // Encrypt config json data.
-                    key = CryptoUtils.GenerateKeyFromPassword(Environment.UserName);
-                    var jsonEncrypted = CryptoUtils.EncryptWithKey(
-                        passWord: null,
-                        key: key,
-                        Encoding.UTF8.GetBytes(jsonStr));
-
-                    lock (_syncObject)
-                    {
-                        _lastConfigWriteTime = DateTime.Now;
-                    }
-
                     if (!Utils.IsWindows && !File.Exists(LocalConfigFilePath))
                     {
                         // Non-Windows platform file permissions must be set individually.
@@ -2249,6 +2203,11 @@ namespace Microsoft.PowerShell.SecretStore
                     File.WriteAllBytes(
                         path: LocalConfigFilePath,
                         bytes: jsonEncrypted);
+
+                    lock (_syncObject)
+                    {
+                        _lastConfigWriteTime = DateTime.Now;
+                    }
                 
                     errorMsg = string.Empty;
                     return true;
@@ -2264,13 +2223,8 @@ namespace Microsoft.PowerShell.SecretStore
                     exFail = ex;
                     break;
                 }
-                finally
-                {
-                    key?.Clear();
-                }
 
                 System.Threading.Thread.Sleep(250);
-
             } while (++count < 4);
 
             errorMsg = string.Format(
@@ -2294,26 +2248,15 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Open and read from file stream
-            AesKey key = null;
+            byte[] encryptedConfigJson = null;
             var count = 0;
             Exception exFail = null;
             do
             {
                 try
                 {
-                    var encryptedConfigJson = File.ReadAllBytes(LocalConfigFilePath);
-
-                    // Decrypt config json data.
-                    key = CryptoUtils.GenerateKeyFromPassword(Environment.UserName);
-                    var configJsonBlob = CryptoUtils.DecryptWithKey(
-                        passWord: null,
-                        key: key,
-                        data: encryptedConfigJson);
-
-                    var configJson = Encoding.UTF8.GetString(configJsonBlob);
-                    configData = new SecureStoreConfig(configJson);
-                    errorMsg = string.Empty;
-                    return true;
+                    encryptedConfigJson = File.ReadAllBytes(LocalConfigFilePath);
+                    break;
                 }
                 catch (IOException exIO)
                 {
@@ -2326,21 +2269,32 @@ namespace Microsoft.PowerShell.SecretStore
                     exFail = ex;
                     break;
                 }
-                finally
-                {
-                    key?.Clear();
-                }
 
                 System.Threading.Thread.Sleep(250);
-
             } while (++count < 4);
 
-            errorMsg = string.Format(
-                CultureInfo.InvariantCulture,
-                @"Unable to read from local store configuration file with error: {0}",
-                exFail.Message);
+            if (encryptedConfigJson == null)
+            {
+                errorMsg = string.Format(
+                    CultureInfo.InvariantCulture,
+                    @"Unable to read from local store configuration file with error: {0}",
+                    exFail?.Message ?? string.Empty);
 
-            return false;
+                return false;
+            }
+
+            // Decrypt config json data.
+            var encryptKey = CryptoUtils.GenerateKeyFromUserName();
+            var configJsonBlob = CryptoUtils.DecryptWithKey(
+                passWord: null,
+                key: encryptKey,
+                data: encryptedConfigJson);
+            encryptKey.Clear();
+
+            var configJson = Encoding.UTF8.GetString(configJsonBlob);
+            configData = new SecureStoreConfig(configJson);
+            errorMsg = string.Empty;
+            return true;
         }
 
         public static bool RemoveStoreFile(out string errorMsg)
@@ -2368,7 +2322,6 @@ namespace Microsoft.PowerShell.SecretStore
                 }
 
                 System.Threading.Thread.Sleep(250);
-
             } while (++count < 4);
 
             errorMsg = string.Format(
@@ -2387,6 +2340,177 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
 
         #region Private methods
+
+        // Key file structure
+        /*
+        int:    key blob size
+        int:    iv blob size
+        byte[]: key blob
+        byte[]: iv blob
+        */
+
+        private static void WriteKeyFile(
+            FileStream fs,
+            AesKey key)
+        {
+            fs.Seek(0, 0);
+
+            // Create file data blob.
+            var intSize = sizeof(Int32);
+            var keyBlobSize = key.Key.Length;
+            var ivBlobSize = key.IV.Length;
+            var fileDataBlobSize = (intSize * 2) + keyBlobSize + ivBlobSize;
+            var fileDataBlob = new byte[fileDataBlobSize];
+            var index = 0;
+
+            // Copy key size.
+            Buffer.BlockCopy(
+                src: BitConverter.GetBytes(keyBlobSize),
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: intSize);
+            index += intSize;
+
+            // Copy iv size.
+            Buffer.BlockCopy(
+                src: BitConverter.GetBytes(ivBlobSize),
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: intSize);
+            index += intSize;
+
+            // Copy key blob.
+            Buffer.BlockCopy(
+                src: key.Key,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: keyBlobSize);
+            index += keyBlobSize;
+
+            // Copy iv blob.
+            Buffer.BlockCopy(
+                src: key.IV,
+                srcOffset: 0,
+                dst: fileDataBlob,
+                dstOffset: index,
+                count: ivBlobSize);
+            index += ivBlobSize;
+
+            // Encrypt with Username.
+            var fileEncryptKey = CryptoUtils.GenerateKeyFromUserName();
+            var encryptedData = CryptoUtils.EncryptWithKey(
+                passWord: null,
+                key: fileEncryptKey,
+                fileDataBlob);
+            fileEncryptKey.Clear();
+
+            // Write to file.
+            fs.Write(
+                array: encryptedData,
+                offset: 0,
+                count: encryptedData.Length);
+        }
+
+        private static bool ReadKeyFile(
+            out AesKey key,
+            out string errorMsg)
+        {
+            key = null;
+            byte[] encryptedDataBlob = null;
+            var count = 0;
+            Exception exFail = null;
+            do
+            {
+                try
+                {
+                    // Open and read encrypted data from file.
+                    encryptedDataBlob = File.ReadAllBytes(LocalKeyFilePath);
+                    break;
+                }
+                catch (IOException exIO)
+                {
+                    // Make up to four attempts.
+                    exFail = exIO;
+                }
+                catch (Exception ex)
+                {
+                    // Unexpected error.
+                    exFail = ex;
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(250);
+            } while (++count < 4);
+
+            if (encryptedDataBlob == null)
+            {
+                errorMsg = string.Format(
+                    CultureInfo.InvariantCulture,
+                    @"Unable to read from local key file with error: {0}",
+                    exFail?.Message ?? string.Empty);
+
+                return false;
+            }
+
+            // Decrypt data.
+            var fileEncryptKey = CryptoUtils.GenerateKeyFromUserName();
+            var dataBlob = CryptoUtils.DecryptWithKey(
+                passWord: null,
+                key: fileEncryptKey,
+                data: encryptedDataBlob);
+            fileEncryptKey.Clear();
+
+            var intSize = sizeof(Int32);
+            byte[] intField = new byte[intSize];
+
+            // Extract key blob size.
+            var index = 0;
+            Buffer.BlockCopy(
+                src: dataBlob,
+                srcOffset: index,
+                dst: intField,
+                dstOffset: 0,
+                count: intSize);
+            index += intSize;
+            var keyBlobSize = BitConverter.ToInt32(intField, 0);
+
+            // Extract iv blob size.
+            Buffer.BlockCopy(
+                src: dataBlob,
+                srcOffset: index,
+                dst: intField,
+                dstOffset: 0,
+                count: intSize);
+            index += intSize;
+            var ivBlobSize = BitConverter.ToInt32(intField, 0);
+
+            // Extract key blob
+            var keyBlob = new byte[keyBlobSize];
+            Buffer.BlockCopy(
+                src: dataBlob,
+                srcOffset: index,
+                dst: keyBlob,
+                dstOffset: 0,
+                count: keyBlobSize);
+            index += keyBlobSize;
+
+            // Extract iv blob
+            var ivBlob = new byte[ivBlobSize];
+            Buffer.BlockCopy(
+                src: dataBlob,
+                srcOffset: index,
+                dst: ivBlob,
+                dstOffset: 0,
+                count: ivBlobSize);
+            index += ivBlobSize;
+
+            key = new AesKey(keyBlob, ivBlob);
+            errorMsg = string.Empty;
+            return true;
+        }
 
         private static void UpdateData(FileSystemEventArgs args)
         {

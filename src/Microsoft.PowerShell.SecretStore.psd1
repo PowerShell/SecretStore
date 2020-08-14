@@ -30,10 +30,13 @@ Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 Description = "
-This PowerShell module is an extension vault module for the PowerShell SecretManagement module.
-As an extension vault, this module stores secrets to the local machine based on the current user account context.
-The secrets are encrypted on file using .NET Crypto APIs.
-A password is required for each user account store.
+This PowerShell module is an extension vault for the PowerShell SecretManagement module.
+As an extension vault, this module stores secrets to the local machine based on the current user 
+account context. The secrets are encrypted on file using .NET Crypto APIs. A password is required
+in the default configuration. The configuration can be changed with the provided cmdlets.
+
+Go to GitHub for more information about this module and to submit issues:
+https://github.com/powershell/SecretStore
 "
 
 # Minimum version of the PowerShell engine required by this module
@@ -65,7 +68,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'alpha4'
+        Prerelease = 'preview1'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

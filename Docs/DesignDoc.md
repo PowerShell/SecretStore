@@ -6,7 +6,7 @@ The Microsoft.PowerShell.SecretStore is a PowerShell module extension vault for 
 It is a secure storage solution that stores secret data on the local machine.
 It is based on .NET cryptography APIs, and works on all PowerShell supported platforms for Windows, Linux, macOS.  
 
-Secret data is stored at rest in encrypted form on the file system, and decrypted when returned to a user query.  
+Secret data is stored at rest in encrypted form on the file system, and decrypted when returned to a user request.  
 
 The store file data integrity is verified using a cryptographic hash embedded in the file.  
 
@@ -79,15 +79,25 @@ The configuration data is stored on file in a simple json format.
 }
 ```
 
-### Data file
+### Key file
 
-The data file structure consists of five main sections:  
+The key file contains the AES 256 key and IV (initialization vector) blobs.
+This key is randomly generated and is used in the encryption of secrets.
+If a password is required, a new encryption key is derived from this key and the password.
+Otherwise, for no-password operation, a new encryption key is derived from this key and the current username.
+The contents of this file is encrypted with current user username to prevent casual disclosure.  
 
-- File data hash
+The key file structure consists of two main sections:
 
 - Encryption key blob    (AES Encryption key)
 
 - Encryption iv blob     (AES initialization vector)
+
+### Data file
+
+The data file structure consists of three main sections:  
+
+- File data hash         (Sha256 hash is computed over secret metadata and data blob)
 
 - Secret metadata json   (Information about each secret item)
 
@@ -127,31 +137,34 @@ The metadata offset and size fields are used to extract the specific encrypted s
 ## Encryption
 
 All encryption is performed using the .NET Core cryptography APIs to ensure cross platform operation.
-Both the configuration file and data files are encrypted.  
+The configuration file, key file, and data files are all encrypted.  
 
 ### Configuration file encryption
 
-The configuration file encryption is different than the data file.
-Configuration information determines whether a password is required, and that information must be known before password based decryption can be performed.
-So the configuration file is encrypted with the current user name.
+The configuration file is encrypted with the current user name.
 This is a defense-in-depth measure to prevent casual access and modification of configuration data.  
+
+### Key file encryption
+
+The key file is encrypted with the current user name.
+This is a defense-in-depth measure to prevent casual access.  
 
 ### Data file encryption
 
 The data file uses symmetric encryption with an AES 256 key.
-The AES key, along with an iv value, is stored in the data file along with the secret data and metadata.
+The secret data and metadata are stored in the data file.
 If a password is required, then a new AES key is cryptographically derived from the stored AES key plus the provided password, and the derived key is used for encryption.
-For password-less operation, the stored AES key itself is used for encryption.  
+For password-less operation, then a new AES key is cryptographically derived from the stored AES key plus the current username.  
 
 The metadata is decrypted and read into memory.
 Metadata does not include the actual secret values, so it remains in memory un-encrypted.
-The secret data blob is also read into memory, but each individually encrypted secret remains encrypted until returned in a user query response.  
+The secret data blob is also read into memory, but each individually encrypted secret remains encrypted until returned in a user request response.  
 
 ## Data file integrity
 
-The integrity of the data file contents is verified through a cryptographic hash computed over all the data file contents: key blob, iv blob, metadata json, data blob.  
+The integrity of the data file contents is verified through a cryptographic hash computed over all the data file contents: metadata json and data blob.  
 If a password is required, then the hash value is computed based on a salt value and the provided password.
-If no password is required, then the hash value is computed with the salt value and the current user name.  
+If no password is required, then the hash value is computed with the salt value and the current username.  
 
 ## Configuration
 
@@ -177,17 +190,17 @@ It also protects the data from exposure if the physical media containing the dat
 ### No password required
 
 If SecretStore is configured with no password required, data is still encrypted as before.
-The difference is that data encryption is performed with an AES key that is stored on file.
+The difference is that data encryption is performed with an AES key that is stored on file plus current username.
 Whereas a password is protected by the user, the AES key is protected only by the file system.
 The file system protects the secret data from other low privilege users.
-But admin or root users will be able to discover the key and access the secrets.
-So security is clearly not as strong when compared to password protection.  
+But admin or root users will be able to discover the key and potentially access secrets.
+So security is clearly not as strong when compared to password based protection.  
 
 ### Data encryption
 
 Secret metadata is not considered sensitive and so it is decrypted once and remains in memory un-encrypted.
 But secret value blobs are individually encrypted and remain encrypted after being read into memory.
-Secret values are decrypted only when returned to a user from a query.  
+Secret values are decrypted only when returned to a user from a request.  
 
 ### Data integrity
 

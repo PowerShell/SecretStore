@@ -164,7 +164,7 @@ namespace Microsoft.PowerShell.SecretStore
                 ThrowTerminatingError(
                     new ErrorRecord(
                         exception: new PSNotSupportedException("AllUsers scope is not yet supported."),
-                        errorId: "LocalStoreConfigurationNotSupported",
+                        errorId: "SecretStoreConfigurationNotSupported",
                         errorCategory: ErrorCategory.NotEnabled,
                         this));
             }
@@ -199,7 +199,7 @@ namespace Microsoft.PowerShell.SecretStore
                 ThrowTerminatingError(
                     new ErrorRecord(
                         exception: new PSInvalidOperationException(errorMsg),
-                        errorId: "LocalStoreConfigurationUpdateFailed",
+                        errorId: "SecretStoreConfigurationUpdateFailed",
                         errorCategory: ErrorCategory.InvalidOperation,
                         this));
             }
@@ -248,7 +248,7 @@ namespace Microsoft.PowerShell.SecretStore
                 ThrowTerminatingError(
                     new ErrorRecord(
                         exception: new PSNotSupportedException("AllUsers scope is not yet supported."),
-                        errorId: "LocalStoreConfigurationNotSupported",
+                        errorId: "SecretStoreConfigurationNotSupported",
                         errorCategory: ErrorCategory.NotEnabled,
                         this));
             }
@@ -277,7 +277,7 @@ namespace Microsoft.PowerShell.SecretStore
                 ThrowTerminatingError(
                     new ErrorRecord(
                         exception: new PSInvalidOperationException(errorMsg),
-                        errorId: "ResetLocalStoreCannotRemoveStoreFile",
+                        errorId: "ResetSecretStoreCannotRemoveStoreFile",
                         errorCategory: ErrorCategory.InvalidOperation,
                         targetObject: this));
             }
@@ -289,7 +289,7 @@ namespace Microsoft.PowerShell.SecretStore
                 ThrowTerminatingError(
                     new ErrorRecord(
                         exception: new PSInvalidOperationException(errorMsg),
-                        errorId: "ResetLocalStoreCannotWriteConfigFile",
+                        errorId: "ResetSecretStoreCannotWriteConfigFile",
                         errorCategory: ErrorCategory.InvalidOperation,
                         targetObject: this));
             }

@@ -31,13 +31,13 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
         #>
 
-        # Reset the local store and configure it for no-password access
-        # This deletes all local store data!!
+        # Reset the SecretStore and configure it for no-password access
+        # This deletes all SecretStore data!!
         Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
-        Reset-LocalStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout: -1 -DoNotPrompt -Force
+        Reset-SecretStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout: -1 -DoNotPrompt -Force
     }
 
-    Context "Local Store file permission tests" {
+    Context "SecretStore file permission tests" {
 
         BeforeAll {
             Get-SecretInfo
@@ -48,18 +48,20 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $storePath = Join-Path -Path $storePath -ChildPath 'Microsoft\PowerShell\secretmanagement\localstore'
                 $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
                 $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+                $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
             }
             else
             {
                 $storePath = Join-Path -Path "$home" -ChildPath '.secretmanagement/localstore'
                 $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
                 $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+                $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
             }
         }
 
         if ($IsWindows)
         {
-            It "Verifies local store directory ACLs" {
+            It "Verifies SecretStore directory ACLs" {
                 $acl = Get-Acl $storePath
                 $acl.Access | Should -HaveCount 1
                 $accessRule = $acl.Access[0]
@@ -72,7 +74,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $accessRule.PropagationFlags | Should -BeExactly 'None'
             }
 
-            It "Verifies local store configuration file ACLs" {
+            It "Verifies SecretStore configuration file ACLs" {
                 $acl = Get-Acl $storeConfigFilePath
                 $acl.Access | Should -HaveCount 1
                 $accessRule = $acl.Access[0]
@@ -85,8 +87,21 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $accessRule.PropagationFlags | Should -BeExactly 'None'
             }
 
-            It "Verifies local store file ACLs" {
+            It "Verifies SecretStore file ACLs" {
                 $acl = Get-Acl $storeFilePath
+                $acl.Access | Should -HaveCount 1
+                $accessRule = $acl.Access[0]
+
+                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+                $accessRule.AccessControlType | Should -BeExactly 'Allow'
+                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+                $accessRule.IsInherited | Should -BeTrue
+                $accessRule.InheritanceFlags | Should -BeExactly 'None'
+                $accessRule.PropagationFlags | Should -BeExactly 'None'
+            }
+
+            It "Verifies SecretStore key file ACLs" {
+                $acl = Get-Acl $storeKeyFilePath
                 $acl.Access | Should -HaveCount 1
                 $accessRule = $acl.Access[0]
 
@@ -103,22 +118,29 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             # drwx------ 2 <user> <user> 4096 Jun 30 16:03 <path>
             $userName = [System.Environment]::GetEnvironmentVariable("USER")
 
-            It "Verifies local store directory permissions" {
+            It "Verifies SecretStore directory permissions" {
                 $permissions = (ls -ld "$storePath").Split(' ')
                 $permissions[0] | Should -BeExactly 'drwx------'
                 $permissions[2] | Should -BeExactly $userName
                 $permissions[3] | Should -BeExactly $userName
             }
 
-            It "Verfies local store configuration file permissions" {
+            It "Verfies SecretStore configuration file permissions" {
                 $permissions = (ls -ld "$storeConfigFilePath").Split(' ')
                 $permissions[0] | Should -BeExactly '-rw-------'
                 $permissions[2] | Should -BeExactly $userName
                 $permissions[3] | Should -BeExactly $userName
             }
 
-            It "Verifes local store file permissions" {
+            It "Verifes SecretStore file permissions" {
                 $permissions = (ls -ld "$storeFilePath").Split(' ')
+                $permissions[0] | Should -BeExactly '-rw-------'
+                $permissions[2] | Should -BeExactly $userName
+                $permissions[3] | Should -BeExactly $userName
+            }
+
+            It "Verifes SecretStore key file permissions" {
+                $permissions = (ls -ld "$storeKeyFilePath").Split(' ')
                 $permissions[0] | Should -BeExactly '-rw-------'
                 $permissions[2] | Should -BeExactly $userName
                 $permissions[3] | Should -BeExactly $userName
@@ -126,32 +148,32 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
-    Context "Local Store Vault cmdlet tests" {
+    Context "SecretStore Vault cmdlet tests" {
 
-        It "Verifies local store configuration for tests" {
-            $config = Get-LocalStoreConfiguration
+        It "Verifies SecretStore configuration for tests" {
+            $config = Get-SecretStoreConfiguration
             $config.Scope | Should -BeExactly "CurrentUser"
             $config.PasswordRequired | Should -BeFalse
             $config.PasswordTimeout | Should -Be -1
             $config.DoNotPrompt | Should -BeTrue
         }
 
-        It "Verifies local store AllUsers option is not implement" {
-            { Set-LocalStoreConfiguration -Scope AllUsers } | Should -Throw -ErrorId 'LocalStoreConfigurationNotSupported,Microsoft.PowerShell.SecretStore.SetLocalStoreConfiguration'
+        It "Verifies SecretStore AllUsers option is not implement" {
+            { Set-SecretStoreConfiguration -Scope AllUsers } | Should -Throw -ErrorId 'SecretStoreConfigurationNotSupported,Microsoft.PowerShell.SecretStore.SetSecretStoreConfiguration'
         }
 
-        It "Verifies Unlock-LocalStore throws expected error when in no password mode" {
-            { Unlock-LocalStore -Password None } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockLocalStoreCommand'
+        It "Verifies Unlock-SecretStore throws expected error when in no password mode" {
+            { Unlock-SecretStore -Password None } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
         }
     }
 
-    Context "Local Store Vault Byte[] type" {
+    Context "SecretStore Vault Byte[] type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("TestBytesStringToTest")
         $errorMsg = ""
 
-        It "Verifies byte[] write to local store" {
+        It "Verifies byte[] write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $secretName,
                 $bytesToWrite,
@@ -161,7 +183,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
         }
 
-        It "Verifes byte[] read from local store" {
+        It "Verifes byte[] read from SecretStore" {
             $outBytes = $null;
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $secretName,
@@ -173,7 +195,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             [System.Text.Encoding]::UTF8.GetString($outBytes) | Should -BeExactly "TestBytesStringToTest"
         }
 
-        It "Verifies byte[] enumeration from local store" {
+        It "Verifies byte[] enumeration from SecretStore" {
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -204,13 +226,13 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
-    Context "Local Store Vault String type" {
+    Context "SecretStore Vault String type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $stringToWrite = "TestStoreString"
         $errorMsg = ""
 
-        It "Verifes String write to local store" {
+        It "Verifes String write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $secretName,
                 $stringToWrite,
@@ -220,7 +242,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
         }
 
-        It "Verifies String read from local store" {
+        It "Verifies String read from SecretStore" {
             $outString = $null;
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $secretName,
@@ -232,7 +254,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $outString | Should -BeExactly $stringToWrite
         }
 
-        It "Verifies String enumeration from local store" {
+        It "Verifies String enumeration from SecretStore" {
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -247,7 +269,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
-        It "Verifies String remove from local store" {
+        It "Verifies String remove from SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $secretName,
                 [ref] $errorMsg)
@@ -263,14 +285,14 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
-    Context "Local Store Vault SecureString type" {
+    Context "SecretStore Vault SecureString type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
         $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
         $errorMsg = ""
 
-        It "Verifies SecureString write to local store" {
+        It "Verifies SecureString write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $secretName,
                 $secureStringToWrite,
@@ -280,7 +302,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
         }
 
-        It "Verifies SecureString read from local store" {
+        It "Verifies SecureString read from SecretStore" {
             $outSecureString = $null;
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $secretName,
@@ -293,7 +315,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             [System.Net.NetworkCredential]::new('',$outSecureString).Password | Should -BeExactly $randomSecret
         }
 
-        It "Verifies SecureString enumeration from local store" {
+        It "Verifies SecureString enumeration from SecretStore" {
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -308,7 +330,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
-        It "Verifies SecureString remove from local store" {
+        It "Verifies SecureString remove from SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $secretName,
                 [ref] $errorMsg)
@@ -324,13 +346,13 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
-    Context "Local Store Vault PSCredential type" {
+    Context "SecretStore Vault PSCredential type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecret = [System.IO.Path]::GetRandomFileName()
         $errorMsg = ""
 
-        It "Verifies PSCredential type write to local store" {
+        It "Verifies PSCredential type write to SecretStore" {
             $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $secretName,
@@ -341,7 +363,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
         }
 
-        It "Verifies PSCredential read from local store" {
+        It "Verifies PSCredential read from SecretStore" {
             $outCred = $null;
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $secretName,
@@ -355,7 +377,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             [System.Net.NetworkCredential]::new('', ($outCred.Password)).Password | Should -BeExactly $randomSecret
         }
 
-        It "Verifies PSCredential enumeration from local store" {
+        It "Verifies PSCredential enumeration from SecretStore" {
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -370,7 +392,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
-        It "Verifies PSCredential remove from local store" {
+        It "Verifies PSCredential remove from SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $secretName,
                 [ref] $errorMsg)
@@ -386,14 +408,14 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
-    Context "Local Store Vault Hashtable type" {
+    Context "SecretStore Vault Hashtable type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
         $randomSecretA = [System.IO.Path]::GetRandomFileName()
         $randomSecretB = [System.IO.Path]::GetRandomFileName()
         $errorMsg = ""
 
-        It "Verifies Hashtable type write to local store" {
+        It "Verifies Hashtable type write to SecretStore" {
             $ht = @{
                 Blob = ([byte[]] @(1,2))
                 Str = "TestHashtableString"
@@ -410,7 +432,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
         }
 
-        It "Verifies Hashtable read from local store" {
+        It "Verifies Hashtable read from SecretStore" {
             $outHT = $null;
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $secretName,
@@ -426,7 +448,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             [System.Net.NetworkCredential]::New('', ($outHT.Cred.Password)).Password | Should -BeExactly $randomSecretB
         }
 
-        It "Verifies Hashtable enumeration from local store" {
+        It "Verifies Hashtable enumeration from SecretStore" {
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -441,7 +463,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $outInfo.VaultName | Should -BeExactly "MyVault"
         }
 
-        It "Verifies Hashtable remove from local store" {
+        It "Verifies Hashtable remove from SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $secretName,
                 [ref] $errorMsg)
