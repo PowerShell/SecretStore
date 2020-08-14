@@ -1956,7 +1956,7 @@ namespace Microsoft.PowerShell.SecretStore
                         // Windows platform file ACLs are inherited from containing directory.
                         using (File.Create(LocalKeyFilePath)) { }
                         SetFilePermissions(
-                            filePath: LocalConfigFilePath,
+                            filePath: LocalKeyFilePath,
                             isDirectory: false);
                     }
 
