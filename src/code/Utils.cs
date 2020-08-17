@@ -2721,6 +2721,8 @@ namespace Microsoft.PowerShell.SecretStore
         private const string SecureStringType = "SecureStringType";
         private const string PSCredentialType = "CredentialType";
         private const string HashtableType = "HashtableType";
+        private const string VaultPaswordPrompt = "Vault {0} requires a password.";
+        private const string NewVaultPasswordPrompt = "Creating a new {0} vault. A password is required by the current store configuration.";
         private const int MaxHashtableItemCount = 20;
 
         private readonly SecureStore _secureStore;
@@ -2817,19 +2819,9 @@ namespace Microsoft.PowerShell.SecretStore
 
                             if (cmdlet != null && AllowPrompting)
                             {
-                                if (SecureStoreFile.StoreFileExists())
-                                {
-                                    // Prompt for existing local store file.
-                                    password = Utils.PromptForPassword(cmdlet);
-                                }
-                                else
-                                {
-                                    // Prompt for creation of new store file.
-                                    password = Utils.PromptForPassword(
-                                        cmdlet: cmdlet,
-                                        verifyPassword: true,
-                                        message: "Creating a new Microsoft.PowerShell.SecretStore module vault store file. A password is required by the current store configuration.");
-                                }
+                                password = PromptForPassword(
+                                    vaultName: "Microsoft.PowerShell.SecretStore",
+                                    cmdlet: cmdlet);
 
                                 LocalStore = new LocalSecretStore(
                                     SecureStore.GetStore(password));
@@ -2855,20 +2847,12 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
-        private const string VaultPaswordPrompt = "Vault {0} requires a password.";
         public static void PromptAndUnlockVault(
             string vaultName,
             PSCmdlet cmdlet)
         {
-            var promptMessage = string.Format(CultureInfo.InvariantCulture,
-                VaultPaswordPrompt, vaultName);
-
-            var vaultKey = Utils.PromptForPassword(
-                cmdlet: cmdlet,
-                verifyPassword: false,
-                message: promptMessage);
-
-            LocalSecretStore.GetInstance(vaultKey).UnlockLocalStore(vaultKey);
+            var password = PromptForPassword(vaultName, cmdlet);
+            LocalSecretStore.GetInstance(password).UnlockLocalStore(password);
         }
 
         #endregion
@@ -3130,6 +3114,32 @@ namespace Microsoft.PowerShell.SecretStore
         internal static bool IsHTTagged(string str)
         {
             return str.StartsWith(PSHashtableTag);
+        }
+
+        private static SecureString PromptForPassword(
+            string vaultName,
+            PSCmdlet cmdlet)
+        {
+            if (SecureStoreFile.StoreFileExists())
+            {
+                // Prompt for existing local store file.
+                var promptMessage = string.Format(CultureInfo.InvariantCulture,
+                    VaultPaswordPrompt, vaultName);
+                return Utils.PromptForPassword(
+                    cmdlet: cmdlet,
+                    verifyPassword: false,
+                    message: promptMessage);
+            }
+            else
+            {
+                // Prompt for creation of new store file.
+                var promptMessage = string.Format(CultureInfo.InvariantCulture,
+                    NewVaultPasswordPrompt, vaultName);
+                return Utils.PromptForPassword(
+                    cmdlet: cmdlet,
+                    verifyPassword: true,
+                    message: promptMessage);
+            }
         }
 
         #endregion

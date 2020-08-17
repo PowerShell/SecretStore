@@ -17,7 +17,7 @@ function Get-Secret
         try
         {
             $outSecret = $null
-            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance($null, $PSCmdlet).ReadObject(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
                 $Name,
                 [ref] $outSecret,
                 [ref] $errorMsg))
@@ -66,7 +66,7 @@ function Get-SecretInfo
         try
         {
             $outSecretInfo = $null
-            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance($null, $PSCmdlet).EnumerateObjectInfo(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $Filter,
                 [ref] $outSecretInfo,
                 $VaultName,
@@ -116,7 +116,7 @@ function Set-Secret
     {
         try
         {
-            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance($null, $PSCmdlet).WriteObject(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $Name,
                 $Secret,
                 [ref] $errorMsg))
@@ -162,7 +162,7 @@ function Remove-Secret
     {
         try
         {
-            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance($null, $PSCmdlet).DeleteObject(
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().DeleteObject(
                 $Name,
                 [ref] $errorMsg))
             {
