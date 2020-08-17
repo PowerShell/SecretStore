@@ -120,12 +120,6 @@ namespace Microsoft.PowerShell.SecretStore
             SecureString secureString,
             out byte[] data)
         {
-            if (secureString == null)
-            {
-                data = null;
-                return false;
-            }
-
             IntPtr ptr = Marshal.SecureStringToCoTaskMemUnicode(secureString);
             if (ptr != IntPtr.Zero)
             {
@@ -392,6 +386,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public static void ZeroOutData(byte[] data)
         {
+            if (data == null) { return; }
             for (int i = 0; i < data.Length; i++)
             {
                 data[i] = 0;
@@ -402,21 +397,32 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Private methods
 
-        private static AesKey DeriveAesKeyFromKeyAndPasswordOrUser(
-            SecureString passWord,
-            AesKey key)
+        private static byte[] GetPasswordOrUserData(
+            SecureString passWord)
         {
-            if (!Utils.GetDataFromSecureString(
+            if (passWord == null)
+            {
+                return Encoding.UTF8.GetBytes(Environment.UserName);
+            }
+
+            if (Utils.GetDataFromSecureString(
                 secureString: passWord,
                 data: out byte[] passWordData))
             {
-                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
+                return passWordData;
             }
-            
-            byte[] newKey = null;
-            byte[] newIV = null;
+
+            throw new PSInvalidOperationException("Unable to read password data from SecureString.");
+        }
+
+        private static AesKey DeriveAesKeyFromKeyAndPasswordOrUser(
+            SecureString passWord,
+            AesKey key)
+        {            
+            var passWordData = GetPasswordOrUserData(passWord);
             try
             {
+                byte[] newKey;
                 using (var derivedBytes = new Rfc2898DeriveBytes(
                     password: passWordData, 
                     salt: key.Key, 
@@ -425,6 +431,7 @@ namespace Microsoft.PowerShell.SecretStore
                     newKey = derivedBytes.GetBytes(key.Key.Length);
                 }
 
+                byte[] newIV;
                 using (var derivedBytes = new Rfc2898DeriveBytes(
                     password: passWordData,
                     salt: key.IV,
@@ -432,28 +439,22 @@ namespace Microsoft.PowerShell.SecretStore
                 {
                     newIV = derivedBytes.GetBytes(key.IV.Length);
                 }
+
+                return new AesKey(
+                    key: newKey,
+                    iv: newIV);
             }
             finally
             {
                 ZeroOutData(passWordData);
             }
-
-            return new AesKey(
-                key: newKey,
-                iv: newIV);
         }
 
         private static byte[] DeriveKeyFromPasswordOrUser(
             SecureString passWord)
         {
             // Create hash key with either provided password or current user name.
-            if (!Utils.GetDataFromSecureString(
-                secureString: passWord,
-                data: out byte[] passWordData))
-            {
-                passWordData = Encoding.UTF8.GetBytes(Environment.UserName);
-            }
-
+            var passWordData = GetPasswordOrUserData(passWord);
             return DeriveKeyFromPassword(
                 passwordData: passWordData,
                 keyLength: 64);
@@ -724,6 +725,8 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Constructor
 
+        private AesKey() { }
+
         public AesKey(
             byte[] key,
             byte[] iv)
@@ -738,14 +741,8 @@ namespace Microsoft.PowerShell.SecretStore
 
         public void Clear()
         {
-            if (Key != null)
-            {
-                CryptoUtils.ZeroOutData(Key);
-            }
-            if (IV != null)
-            {
-                CryptoUtils.ZeroOutData(IV);
-            }
+            CryptoUtils.ZeroOutData(Key);
+            CryptoUtils.ZeroOutData(IV);
         }
 
         #endregion
@@ -842,12 +839,7 @@ namespace Microsoft.PowerShell.SecretStore
         public void Clear()
         {
             Key.Clear();
-
-            if (Blob != null)
-            {
-                CryptoUtils.ZeroOutData(Blob);
-            }
-
+            CryptoUtils.ZeroOutData(Blob);
             MetaData?.Clear();
         }
 
@@ -969,7 +961,7 @@ namespace Microsoft.PowerShell.SecretStore
                         throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
                     }
 
-                    return (_password != null) ? _password.Copy() : null;
+                    return _password?.Copy() ?? null;
                 }
             }
         }
@@ -1652,7 +1644,7 @@ namespace Microsoft.PowerShell.SecretStore
                     {
                         // This indicates a corrupted store configuration or inadvertent file deletion.
                         // settings needed for store, or must re-create local store.
-                        throw new InvalidOperationException("Secure local store is in inconsistent state.  TODO: Provide user instructions.");
+                        throw new InvalidOperationException("Secure local store is in inconsistent state.");
                     }
 
                     // First time, use default configuration.
@@ -2089,11 +2081,6 @@ namespace Microsoft.PowerShell.SecretStore
                     // Make up to four attempts.
                     exFail = exIO;
                 }
-                catch (PasswordRequiredException)
-                {
-                    // Propagate password required.
-                    throw;
-                }
                 catch (Exception ex)
                 {
                     // Unexpected error.
@@ -2136,7 +2123,7 @@ namespace Microsoft.PowerShell.SecretStore
             index += intSize;
             var jsonBlobSize = BitConverter.ToInt32(intField, 0);
 
-            // Extract json blob
+            // Extract json blob and decrypt.
             var jsonBlob = new byte[jsonBlobSize];
             Buffer.BlockCopy(
                 src: fileDataBlob,
@@ -2152,7 +2139,7 @@ namespace Microsoft.PowerShell.SecretStore
                     key: key,
                     data: jsonBlob));
 
-            // Extract data blob
+            // Extract data blob.
             var dataBlobSize = (fileDataBlob.Length - (jsonBlobSize + intSize));
             var dataBlob = new byte[dataBlobSize];
             Buffer.BlockCopy(
@@ -2247,7 +2234,7 @@ namespace Microsoft.PowerShell.SecretStore
                 return false;
             }
 
-            // Open and read from file stream
+            // Open and read from file stream.
             byte[] encryptedConfigJson = null;
             var count = 0;
             Exception exFail = null;
@@ -2807,10 +2794,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             if (password != null)
             {
-                lock (SyncObject)
-                {
-                    LocalStore = null;
-                }
+                Reset();
             }
 
             if (LocalStore == null)
@@ -3460,11 +3444,7 @@ namespace Microsoft.PowerShell.SecretStore
                 finally
                 {
                     CryptoUtils.ZeroOutData(ssData);
-
-                    if (blob != null)
-                    {
-                        CryptoUtils.ZeroOutData(blob);
-                    }
+                    CryptoUtils.ZeroOutData(blob);
                 }
             }
             
@@ -3504,11 +3484,7 @@ namespace Microsoft.PowerShell.SecretStore
             finally
             {
                 CryptoUtils.ZeroOutData(blob);
-                
-                if (ssData != null)
-                {
-                    CryptoUtils.ZeroOutData(ssData);
-                }
+                CryptoUtils.ZeroOutData(ssData);
             }
 
             credential = null;
