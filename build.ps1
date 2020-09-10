@@ -41,7 +41,7 @@ param (
 )
 
 if ( ! ( Get-Module -ErrorAction SilentlyContinue PSPackageProject) ) {
-    Install-Module PSPackageProject
+    Install-Module -Name PSPackageProject -MinimumVersion 0.1.17 -Force
 }
 
 $config = Get-PSPackageProjectConfiguration -ConfigPath $PSScriptRoot
@@ -51,6 +51,7 @@ $script:SrcPath = $config.SourcePath
 $script:OutDirectory = $config.BuildOutputPath
 $script:SignedDirectory = $config.SignedOutputPath
 $script:TestPath = $config.TestPath
+$script:ExtensionModulePath = '{0}.{1}' -f $config.ModuleName,"Extension"
 
 $script:ModuleRoot = $PSScriptRoot
 $script:Culture = $config.Culture
@@ -103,7 +104,7 @@ if ($Build.IsPresent)
 
 if ($Publish.IsPresent)
 {
-    Invoke-PSPackageProjectPublish -Signed:$Signed.IsPresent
+    Invoke-PSPackageProjectPublish -Signed:$Signed.IsPresent -AllowPreReleaseDependencies
 }
 
 if ( $Test.IsPresent ) {

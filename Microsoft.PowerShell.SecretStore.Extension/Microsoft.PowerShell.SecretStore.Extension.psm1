@@ -3,6 +3,7 @@
 
 function Get-Secret
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
     [CmdletBinding()]
     param (
         [string] $Name,
@@ -52,6 +53,7 @@ function Get-Secret
 
 function Get-SecretInfo
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
     [CmdletBinding()]
     param (
         [string] $Filter,
@@ -102,6 +104,8 @@ function Get-SecretInfo
 
 function Set-Secret
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding()]
     param (
         [string] $Name,
@@ -149,6 +153,8 @@ function Set-Secret
 
 function Remove-Secret
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding()]
     param (
         [string] $Name,
@@ -200,6 +206,7 @@ function Remove-Secret
 
 function Test-SecretVault
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
     [CmdletBinding()]
     param (
         [string] $VaultName,

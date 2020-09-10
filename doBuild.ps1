@@ -21,9 +21,9 @@ function DoBuild
     Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.psd1 to ${OutDirectory}/${ModuleName}"
     Copy-Item "${SrcPath}/${ModuleName}.psd1" "${OutDirectory}/${ModuleName}"
 
-    # Copy format files here
-    Write-Verbose -Verbose "Copy-Item ${SrcPath}/${ModuleName}.format.ps1xml to ${OutDirectory}/${ModuleName}"
-    copy-item "${SrcPath}/${ModuleName}.format.ps1xml" "${OutDirectory}/${ModuleName}"
+    # Copy vault extension module files here
+    Write-Verbose -Verbose "Copy-Item ${ExtensionModulePath} to ${OutDirectory}/${ModuleName}"
+    Copy-Item "${ExtensionModulePath}" "${OutDirectory}/${ModuleName}" -Recurse
 
     # Copy help
     Write-Verbose -Verbose -Message "Copying help files to '$BuildOutPath'"

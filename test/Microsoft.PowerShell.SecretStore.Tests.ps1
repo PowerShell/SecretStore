@@ -12,7 +12,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
         if ((Get-Module -Name Microsoft.PowerShell.SecretStore -ErrorAction Ignore) -eq $null)
         {
-            Import-Module -Name ..\Microsoft.PowerShell.SecretStore.psd1
+            Import-Module -Name Microsoft.PowerShell.SecretStore.psd1
         }
 
         <#
@@ -34,14 +34,13 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         # Reset the SecretStore and configure it for no-password access
         # This deletes all SecretStore data!!
         Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
-        Reset-SecretStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout: -1 -DoNotPrompt -Force
+        Reset-SecretStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout -1 -DoNotPrompt -Force
+        $null = Set-SecretStoreConfiguration -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout -1 -DoNotPrompt -Force
     }
 
     Context "SecretStore file permission tests" {
 
         BeforeAll {
-            Get-SecretInfo
-
             if ($IsWindows)
             {
                 $storePath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
