@@ -1,0 +1,86 @@
+parameters:
+  jobName: TestPkgWin
+  imageName: windows-2019
+  displayName: PowerShell Core on Windows
+  powershellExecutable: pwsh
+
+jobs:
+- job: ${{ parameters.jobName }}
+  pool:
+    vmImage: ${{ parameters.imageName }}
+  displayName: ${{ parameters.displayName }}
+  steps:
+  - ${{ parameters.powershellExecutable }}: |
+      dir $env:USERPROFILE\Documents\PowerShell\Modules\* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+    displayName: Remove all user profile PowerShell modules
+
+  - ${{ parameters.powershellExecutable }}: |
+      Get-PSRepository
+      Install-Module -Name Microsoft.PowerShell.SecretManagement -AllowPrerelease -SkipPublisherCheck -Repository PSGallery -Force
+    displayName: Install SecretManagement 0.5.0 preview
+
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module -Name "platyPS" -Force
+    displayName: Install platyPS dependency
+
+  - ${{ parameters.powershellExecutable }}: |
+        Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
+    displayName: Install PSScriptAnalyzer dependency
+
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module PowerShellGet -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
+      Import-Module PowerShellGet -RequiredVersion 3.0.0 -Force -PassThru
+    displayName: Import PowerShellGet Module
+
+  - ${{ parameters.powershellExecutable }}: |
+      Install-Module -Name PSPackageProject -MinimumVersion 0.1.15 -Force
+    displayName: Install PSPackageProject module
+
+  - ${{ parameters.powershellExecutable }}: |
+      dir $env:USERPROFILE\Documents\PowerShell\Modules\Pester* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
+      Install-Module -Name "Pester" -MaximumVersion 4.99 -Force
+    displayName: Install Pester 4.0 dependency only
+
+  - ${{ parameters.powershellExecutable }}: |
+      Get-Module -Name Pester -ListAvailable
+    displayName: Capture Pester module environment
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download artifacts'
+    inputs:
+      buildType: current
+      downloadType: specific
+      itemPattern: '**/*.nupkg'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  - ${{ parameters.powershellExecutable }}: |
+      Get-ChildItem -Path "$(System.ArtifactsDirectory)"
+    displayName: Capture artifacts directory
+
+  - ${{ parameters.powershellExecutable }}: |
+      $sourceName = 'pspackageproject-local-repo'
+      Register-PackageSource -Name $sourceName -Location "$(System.ArtifactsDirectory)" -ProviderName PowerShellGet -Force -ErrorAction Ignore
+      Get-PackageSource -Name $sourceName
+      $config = Get-PSPackageProjectConfiguration
+      $buildOutputPath = $config.BuildOutputPath
+      $null = New-Item -ItemType Directory -Path $buildOutputPath -Verbose
+      $moduleName = $config.ModuleName
+      Write-Verbose -Verbose "Saving package $sourceName to $($config.BuildOutputPath)"
+      Save-Package -Name $moduleName -Source $sourceName -ProviderName PowerShellGet -Path $config.BuildOutputPath -AllowPrereleaseVersions -Force
+    displayName: Extract product artifact
+
+  #- ${{ parameters.powershellExecutable }}: |
+  #    Invoke-PSPackageProjectTest -Type Functional
+  #  displayName: Execute functional tests
+  #  errorActionPreference: continue
+
+  - ${{ parameters.powershellExecutable }}: |
+      Invoke-PSPackageProjectTest -Type StaticAnalysis
+    displayName: Execute static analysis tests
+    errorActionPreference: continue
+    condition: succeededOrFailed()
+
+  - ${{ parameters.powershellExecutable }}: |
+      Unregister-PSRepository -Name 'pspackageproject-local-repo' -ErrorAction Ignore
+    displayName: Unregister temporary PSRepository
+    condition: always()
