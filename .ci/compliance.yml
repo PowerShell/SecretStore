@@ -9,45 +9,58 @@ steps:
     Write-Host "##$vstsCommandString"
   displayName: Install PowerShell Core
 
-- pwsh: |
-    dir $env:USERPROFILE\Documents\PowerShell\Modules\* -Directory -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -Verbose -ErrorAction SilentlyContinue
-  displayName: Remove all user profile PowerShell modules
-
-- pwsh: |
-    Get-PSRepository
-    Install-Module -Name Microsoft.PowerShell.SecretManagement -AllowPrerelease -SkipPublisherCheck -Repository PSGallery -Force
-  displayName: Install SecretManagement 0.5.0 preview
-
-- pwsh: |
-    Install-Module -Name "platyPS" -Force
-  displayName: Install platyPS
-
-- pwsh: |
-      Install-Module -Name "PSScriptAnalyzer" -RequiredVersion 1.18.0 -Force
-  displayName: Install PSScripAnalyzer
-
-- pwsh: |
-    Install-Module PowerShellGet -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
-    Import-Module PowerShellGet -RequiredVersion 3.0.0 -Force -PassThru
-  displayName: Import PowerShellGet Module
-
-- pwsh: |
-    Install-Module -Name PSPackageProject -MinimumVersion 0.1.15 -Force
-  displayName: Install PSPackageProject module
-
 - task: DownloadBuildArtifacts@0
   displayName: 'Download artifacts'
   inputs:
     buildType: current
-    downloadType: specifc
+    downloadType: specific
     itemPattern: '**/*.nupkg'
     downloadPath: '$(System.ArtifactsDirectory)'
 
 - pwsh: |
-    Get-ChildItem -Path "$(System.ArtifactsDirectory)"
+    Get-ChildItem -Path "$(System.ArtifactsDirectory)" -Recurse
   displayName: Capture artifacts directory
 
 - pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    if (Test-Path -Path $modulePath) {
+      Write-Verbose -Verbose "Deleting existing temp module path: $modulePath"
+      Remove-Item -Path $modulePath -Recurse -Force -ErrorAction Ignore
+    }
+    if (! (Test-Path -Path $modulePath)) {
+      Write-Verbose -Verbose "Creating new temp module path: $modulePath"
+      $null = New-Item -Path $modulePath -ItemType Directory
+    }
+  displayName: Create temporary module path for PSPackageProject
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.0-beta10 -AllowPrerelease -Force
+  displayName: Install PowerShellGet Module
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    Save-Module -Name "platyPS" -Path $modulePath -Force
+  displayName: Install platyPS dependency
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    Save-Module -Name "PSScriptAnalyzer" -Path $modulePath -RequiredVersion 1.18.0 -Force
+  displayName: Install PSScriptAnalyzer dependency
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    Save-Module -Name "Pester" -MaximumVersion 4.99 -Path $modulePath -Force
+  displayName: Install Pester version 4
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    Save-Module -Name PSPackageProject -Path $modulePath -Force
+  displayName: Install PSPackageProject module
+
+- pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
     $sourceName = 'pspackageproject-local-repo'
     Register-PackageSource -Name $sourceName -Location "$(System.ArtifactsDirectory)" -ProviderName PowerShellGet -Force -ErrorAction Ignore
     Get-PackageSource -Name $sourceName
@@ -64,6 +77,8 @@ steps:
   displayName: Extract product artifact
 
 - pwsh: |
+    $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+    $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
     $config = Get-PSPackageProjectConfiguration
     dir "$($config.BuildOutputPath)/*" -r 2>$null
   displayName: 'BuildOutputPath directory'
@@ -134,3 +149,8 @@ steps:
     CredScan: true
     PoliCheck: true
     PoliCheckBreakOn: Severity2Above
+
+- pwsh: |
+    Unregister-PSRepository -Name 'pspackageproject-local-repo' -ErrorAction Ignore
+  displayName: Unregister temporary PSRepository
+  condition: always()
