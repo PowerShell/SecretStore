@@ -30,9 +30,9 @@ The default configuration is set to for best security and interactive use.
 ```powershell
 Get-SecretStoreConfiguration
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True             900       False
+      Scope Authentication PasswordTimeout UserInteraction
+      ----- -------------- --------------- ---------------
+CurrentUser       Password             900       Prompting
 ```
 
 ### SecretStore cmdlets
@@ -51,9 +51,9 @@ Individual configuration options can be set, or the store can be configured to d
 ```powershell
 Set-SecretStoreConfiguration -PasswordTimeout 30
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True              30       False
+      Scope Authentication PasswordTimeout UserInteraction
+      ----- -------------- --------------- ---------------
+CurrentUser       Password              30       Prompting
 ```
 
 #### Unlock-SecretStore
@@ -61,9 +61,9 @@ CurrentUser             True              30       False
 This cmdlet unlocks the SecretStore with the provided password.
 The password can be passed in as a `SecureString` type or in plain text.  
 
-#### Update-SecretStorePassword
+#### Set-SecretStorePassword
 
-This cmdlet updates the SecretStore password.
+This cmdlet changes the SecretStore password.
 It takes no parameters and can only be used interactively, as it prompts the user for old and new passwords.  
 
 #### Reset-SecretStore

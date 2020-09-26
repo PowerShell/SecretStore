@@ -73,9 +73,9 @@ The configuration data is stored on file in a simple json format.
 ```json
 {
   "StoreScope": "CurrentUser",
-  "PasswordRequired": true,
+  "Authentication": "Password",
   "PasswordTimeout": 900,
-  "DoNotPrompt": false
+  "UserInteraction": "Prompting"
 }
 ```
 
@@ -212,6 +212,6 @@ Otherwise, the current user name is used to compute the hash value.
 ### Configuration information
 
 Meddling with the configuration file can prevent SecretStore from operating correctly, and thus be used as a denial of service (DOS) attack.
-For example, if the `PasswordRequired` field is changed, the store data integrity check will fail, preventing access to secret data.
+For example, if the `Authentication` field is changed, the store data integrity check will fail, preventing access to secret data.
 StoreFile relies on the file system to protect the configuration file.
 But the configuration file is also encrypted with the user name to prevent inadvertent disclosure or modification.  

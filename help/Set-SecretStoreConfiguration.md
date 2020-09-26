@@ -14,8 +14,8 @@ Sets SecretStore configuration properties.
 
 ### ParameterSet (Default)
 ```
-Set-SecretStoreConfiguration [-Scope <SecureStoreScope>] [-PasswordRequired] [-PasswordTimeout <Int32>]
- [-DoNotPrompt] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-SecretStoreConfiguration [-Scope <SecureStoreScope>] [-Authentication] [-PasswordTimeout <Int32>]
+ [-UserInteraction] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ### DefaultParameterSet
@@ -38,9 +38,9 @@ Are you sure you want to perform this action?
 Performing the operation "Changes local store configuration" on target "SecretStore module local store".
 [Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "Y"): Y
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True             900       False
+      Scope Authentication PasswordTimeout UserInteraction
+      ----- -------------- --------------- ---------------
+CurrentUser       Password             900       Prompting
 
 PS C:\>
 ```
@@ -48,6 +48,24 @@ PS C:\>
 This example uses the command to restore the SecretStore configuration settings to their default values.
 
 ## PARAMETERS
+
+### -Authentication
+Configuration option to set authentication for store access.
+Configuration options are 'Password' or 'None'.
+When 'Password' is selected, SecretStore is configured to require a password for accessing secrets.
+Default authentication is 'Password', as this provides the strongest protection of secret data.
+
+```yaml
+Type: Authenticate
+Parameter Sets: ParameterSet
+Aliases:
+
+Required: False
+Position: Named
+Default value: Password
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -Default
 This parameter switch sets SecretStore configuration to its default settings.
@@ -64,24 +82,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -DoNotPrompt
-Configuration option to suppress user prompting.
-When true, no prompt will be presented in an interactive session to provide a session password.
-Default value is false, and users will be prompted for password when needed.
-When true and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: ParameterSet
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Force
 When true, the user will not be asked to confirm and the SecretStore will be reset without prompting.
 Default value is false, and user will be asked to confirm the operation.
@@ -93,24 +93,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -PasswordRequired
-Configuration option to require a password for store access.
-When true, SecretStore is configured to require a password for accessing secrets.
-Default value is true, as this provides the strongest protection of secret data.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: ParameterSet
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -141,6 +124,25 @@ Type: SecureStoreScope
 Parameter Sets: ParameterSet
 Aliases:
 Accepted values: CurrentUser, AllUsers
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -UserInteraction
+Configuration option to allow or suppress user prompting.
+Configuration options are 'Prompting' or 'None'.
+When 'None' is selected, no prompt will be presented in an interactive session to provide a session password.
+Default value is 'Prompting', and users will be prompted for password when needed.
+When 'None is selected and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: ParameterSet
+Aliases:
 
 Required: False
 Position: Named

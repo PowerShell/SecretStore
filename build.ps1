@@ -51,7 +51,8 @@ $script:SrcPath = $config.SourcePath
 $script:OutDirectory = $config.BuildOutputPath
 $script:SignedDirectory = $config.SignedOutputPath
 $script:TestPath = $config.TestPath
-$script:ExtensionModulePath = '{0}.{1}' -f $config.ModuleName,"Extension"
+$ExtensionModuleName = '{0}.{1}' -f $config.ModuleName,"Extension"
+$script:ExtensionModulePath = Join-Path -Path $config.SourcePath -ChildPath $ExtensionModuleName
 
 $script:ModuleRoot = $PSScriptRoot
 $script:Culture = $config.Culture

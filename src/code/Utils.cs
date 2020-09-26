@@ -520,12 +520,24 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region SecureStoreScope
+    #region Public Enums
 
     public enum SecureStoreScope
     {
         CurrentUser = 1,
         AllUsers
+    }
+
+    public enum Authenticate
+    {
+        None = 0,
+        Password = 1
+    }
+
+    public enum Interaction
+    {
+        None = 0,
+        Prompting = 1
     }
 
     #endregion
@@ -534,7 +546,7 @@ namespace Microsoft.PowerShell.SecretStore
 
     internal sealed class SecureStoreConfig
     {
-        #region Properties
+        #region Public Properties
 
         public SecureStoreScope Scope 
         {
@@ -542,7 +554,7 @@ namespace Microsoft.PowerShell.SecretStore
             private set;
         }
 
-        public bool PasswordRequired
+        public Authenticate Authentication
         {
             get;
             private set;
@@ -557,7 +569,23 @@ namespace Microsoft.PowerShell.SecretStore
             private set;
         }
 
-        public bool DoNotPrompt
+        public Interaction UserInteraction
+        {
+            get;
+            private set;
+        }
+
+        #endregion
+
+        #region Internal Properties
+
+        internal bool PasswordRequired
+        {
+            get;
+            private set;
+        }
+
+        internal bool DoNotPrompt
         {
             get;
             private set;
@@ -573,14 +601,17 @@ namespace Microsoft.PowerShell.SecretStore
 
         public SecureStoreConfig(
             SecureStoreScope scope,
-            bool passwordRequired,
+            Authenticate authentication,
             int passwordTimeout,
-            bool doNotPrompt)
+            Interaction userInteraction)
         {
             Scope = scope;
-            PasswordRequired = passwordRequired;
             PasswordTimeout = passwordTimeout;
-            DoNotPrompt = doNotPrompt;
+            Authentication = authentication;
+            UserInteraction = userInteraction;
+
+            PasswordRequired = authentication == Authenticate.Password;
+            DoNotPrompt = userInteraction == Interaction.None;
         }
 
         public SecureStoreConfig(
@@ -601,14 +632,14 @@ namespace Microsoft.PowerShell.SecretStore
                 key: "StoreScope",
                 value: Scope);
             configHashtable.Add(
-                key: "PasswordRequired",
-                value: PasswordRequired);
+                key: "Authentication",
+                value: Authentication);
             configHashtable.Add(
                 key: "PasswordTimeout",
                 value: PasswordTimeout);
             configHashtable.Add(
-                key: "DoNotPrompt",
-                value: DoNotPrompt);
+                key: "UserInteraction",
+                value: UserInteraction);
 
             var dataDictionary = new Hashtable();
             dataDictionary.Add(
@@ -629,10 +660,14 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 throw new InvalidDataException("Unable to read store configuration json data.");
             }
+
             Scope = (SecureStoreScope) configDataObj.ConfigData.StoreScope;
-            PasswordRequired = (bool) configDataObj.ConfigData.PasswordRequired;
+            Authentication = (Authenticate) configDataObj.ConfigData.Authentication;
             PasswordTimeout = (int) configDataObj.ConfigData.PasswordTimeout;
-            DoNotPrompt = (bool) configDataObj.ConfigData.DoNotPrompt;
+            UserInteraction = (Interaction) configDataObj.ConfigData.UserInteraction;
+
+            PasswordRequired = Authentication == Authenticate.Password;
+            DoNotPrompt = UserInteraction == Interaction.None;
         }
 
         #endregion
@@ -643,9 +678,9 @@ namespace Microsoft.PowerShell.SecretStore
         {
             return new SecureStoreConfig(
                 scope: SecureStoreScope.CurrentUser,
-                passwordRequired: true,
+                authentication: Authenticate.Password,
                 passwordTimeout: 900,
-                doNotPrompt: false);
+                userInteraction: Interaction.Prompting);
         }
 
         #endregion
@@ -2739,9 +2774,9 @@ namespace Microsoft.PowerShell.SecretStore
         {
             get => new SecureStoreConfig(
                         scope: _secureStore.ConfigData.Scope,
-                        passwordRequired: _secureStore.ConfigData.PasswordRequired,
+                        authentication: _secureStore.ConfigData.Authentication,
                         passwordTimeout: _secureStore.ConfigData.PasswordTimeout,
-                        doNotPrompt: _secureStore.ConfigData.DoNotPrompt);
+                        userInteraction: _secureStore.ConfigData.UserInteraction);
         }
 
         public static bool AllowPrompting

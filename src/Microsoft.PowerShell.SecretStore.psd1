@@ -11,7 +11,7 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '0.5.1'
+ModuleVersion = '0.5.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -43,7 +43,7 @@ https://github.com/powershell/SecretStore
 PowerShellVersion = '5.1'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-CmdletsToExport = @('Unlock-SecretStore','Update-SecretStorePassword','Get-SecretStoreConfiguration','Set-SecretStoreConfiguration','Reset-SecretStore')
+CmdletsToExport = @('Unlock-SecretStore','Set-SecretStorePassword','Get-SecretStoreConfiguration','Set-SecretStoreConfiguration','Reset-SecretStore')
 
 FunctionsToExport = @()
 
@@ -53,13 +53,13 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = @('SecretManagement')
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/PowerShell/Modules/License.txt'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/powershell/secretstore'
 
         # A URL to an icon representing this module.
         # IconUri = ''
@@ -68,7 +68,7 @@ PrivateData = @{
         # ReleaseNotes = ''
 
         # Prerelease string of this module
-        Prerelease = 'preview1'
+        Prerelease = 'preview2'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

@@ -13,7 +13,7 @@ Resets the SecretStore by deleting all secret data and configuring the store wit
 ## SYNTAX
 
 ```
-Reset-SecretStore [-Scope <SecureStoreScope>] [-PasswordRequired] [-PasswordTimeout <Int32>] [-DoNotPrompt]
+Reset-SecretStore [-Scope <SecureStoreScope>] [-Authentication] [-PasswordTimeout <Int32>] [-UserInteraction]
  [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
@@ -29,15 +29,13 @@ Default configuration options can be overridden by specifying individual command
 PS C:\> Reset-SecretStore
 WARNING: !!This operation will completely remove all SecretStore module secrets and reset configuration settings to default values!!
 
-Confirm
-Are you sure you want to perform this action?
-Performing the operation "Erase all secrets in the local store and reset the configuration settings" on target
-"SecretStore module local store".
-[Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "Y"): Y
+Reset SecretStore
+Are you sure you want to erase all secrets in SecretStore and reset configuration settings to default?
+[Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "N"): Y
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True             900       False
+      Scope Authentication PasswordTimeout UserInteraction
+      ----- -------------- --------------- ---------------
+CurrentUser       Password             900       Prompting
 
 PS C:\>
 ```
@@ -47,20 +45,20 @@ The user is warned of the consequences of this action and prompted to confirm be
 
 ## PARAMETERS
 
-### -DoNotPrompt
-Configuration option to suppress user prompting.
-When true, no prompt will be presented in an interactive session to provide a session password.
-Default value is false, and users will be prompted for password when needed.
-When true and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
+### -Authentication
+Configuration option to set authentication for store access.
+Configuration options are 'Password' or 'None'.
+When 'Password' is selected, SecretStore is configured to require a password for accessing secrets.
+Default authentication is 'Password', as this provides the strongest protection of secret data.
 
 ```yaml
-Type: SwitchParameter
+Type: Authenticate
 Parameter Sets: (All)
 Aliases:
 
 Required: False
 Position: Named
-Default value: False
+Default value: Password
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -77,23 +75,6 @@ Aliases:
 Required: False
 Position: Named
 Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -PasswordRequired
-Configuration option to require a password for store access.
-When true, SecretStore is configured to require a password for accessing secrets.
-Default value is true, as this provides the strongest protection of secret data.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: True
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -128,6 +109,25 @@ Accepted values: CurrentUser, AllUsers
 Required: False
 Position: Named
 Default value: CurrentUser
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -UserInteraction
+Configuration option to allow or suppress user prompting.
+Configuration options are 'Prompting' or 'None'.
+When 'None' is selected, no prompt will be presented in an interactive session to provide a session password.
+Default value is 'Prompting', and users will be prompted for password when needed.
+When 'None is selected and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
+
+```yaml
+Type: Interaction
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: Prompting
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

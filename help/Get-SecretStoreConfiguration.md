@@ -22,11 +22,11 @@ Configuration information includes:
 
 - Scope
 
-- PasswordRequired
+- Authentication
 
 - PasswordTimeout (in seconds)
 
-- DoNotPrompt
+- UserInteraction
 
 ## EXAMPLES
 
@@ -34,9 +34,9 @@ Configuration information includes:
 ```powershell
 PS C:\> Get-SecretStoreConfiguration
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True             300       False
+      Scope Authentication PasswordTimeout UserInteraction
+      ----- -------------- --------------- ---------------
+CurrentUser       Password             900       Prompting
 
 PS C:\>
 ```
