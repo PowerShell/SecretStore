@@ -12,19 +12,13 @@ Unlocks SecretStore with the provided password.
 
 ## SYNTAX
 
-### SecureStringParameterSet (Default)
 ```
-Unlock-SecretStore -SecureStringPassword <SecureString> [-PasswordTimeout <Int32>] [<CommonParameters>]
-```
-
-### StringParameterSet
-```
-Unlock-SecretStore [-Password <String>] [-PasswordTimeout <Int32>] [<CommonParameters>]
+Unlock-SecretStore -Password <SecureString> [-PasswordTimeout <Int32>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 This cmdlet unlocks SecretStore for the current user with the provided password.
-It can be used to unlock SecretStore when the configuration requires a password and the 'DoNotPrompt' option is configured.
+It can be used to unlock SecretStore when the configuration requires a password and the prompt configuration option is disabled.
 The provided password will be applied to the current session, and will become invalid after the 'PasswordTimeout' time elapses.
 If no password is provided by parameter argument, the user will be safely prompted for the password.
 
@@ -33,7 +27,8 @@ If no password is provided by parameter argument, the user will be safely prompt
 ### Example 1
 ```powershell
 PS C:\> Get-Secret secret1 -Vault LocalStore
-Get-Secret: Unable to get secret secret1 from vault LocalStore
+Get-Secret: A valid password is required to access the Microsoft.PowerShell.SecretStore vault.
+Get-Secret: The secret secret1 was not found.
 
 PS C:\> Unlock-SecretStore
 
@@ -53,18 +48,17 @@ Running 'Get-Secret' again now works and returns the secret as a SecureString ob
 ## PARAMETERS
 
 ### -Password
-This parameter takes the password argument as a plain text string.
-This is not a secure way to provide a password, and is not recommended in most cases.
+This parameter takes the password argument as a SecureString object.
 
 ```yaml
-Type: String
-Parameter Sets: StringParameterSet
+Type: SecureString
+Parameter Sets: (All)
 Aliases:
 
-Required: False
+Required: True
 Position: Named
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 
@@ -81,22 +75,6 @@ Required: False
 Position: Named
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -SecureStringPassword
-This parameter takes the password argument as a SecureString object.
-It is the most secure way to provide the password, and is the default parameter set.
-
-```yaml
-Type: SecureString
-Parameter Sets: SecureStringParameterSet
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: True (ByPropertyName, ByValue)
 Accept wildcard characters: False
 ```
 

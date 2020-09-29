@@ -75,7 +75,7 @@ The configuration data is stored on file in a simple json format.
   "StoreScope": "CurrentUser",
   "Authentication": "Password",
   "PasswordTimeout": 900,
-  "UserInteraction": "Prompting"
+  "Interaction": "Prompt"
 }
 ```
 

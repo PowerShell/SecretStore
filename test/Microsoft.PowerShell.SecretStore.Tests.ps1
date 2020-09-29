@@ -34,8 +34,8 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         # Reset the SecretStore and configure it for no-password access
         # This deletes all SecretStore data!!
         Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
-        Reset-SecretStore -Scope CurrentUser -Authentication None -PasswordTimeout -1 -UserInteraction None -Force
-        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -UserInteraction None -Force
+        Reset-SecretStore -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
+        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
     }
 
     Context "SecretStore file permission tests" {
@@ -144,7 +144,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $config.Scope | Should -BeExactly "CurrentUser"
             $config.Authentication | Should -BeExactly "None"
             $config.PasswordTimeout | Should -Be -1
-            $config.UserInteraction | Should -BeExactly "None"
+            $config.Interaction | Should -BeExactly "None"
         }
 
         It "Verifies SecretStore AllUsers option is not implement" {
@@ -152,7 +152,8 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
 
         It "Verifies Unlock-SecretStore throws expected error when in no password mode" {
-            { Unlock-SecretStore -Password None } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
+            $token = ConvertTo-SecureString -String "None" -AsPlainText -Force
+            { Unlock-SecretStore -Password $token } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
         }
     }
 

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.5.2-Preview2 - 2020-09-25
+## 0.5.2-Preview2 - 2020-10-01
 
 ### Breaking Changes
 
@@ -9,7 +9,11 @@ The previous file store cannot be read by the new version and you will need to r
 
 !!! Be sure and save your current stored secrets so they can be re-added !!!
 
-- `Set-SecretStoreConfiguration` now supports `-Authentication` and `-UserInteraction` parameters instead of `-PasswordRequired` and `-DoNotPrompt`.
+- `Set-SecretStoreConfiguration` now supports `-Authentication` and `-Interaction` parameters instead of `-PasswordRequired` and `-DoNotPrompt`.
+
+- Rename `Update-SecretStorePassword` to `Set-SecretStorePassword`.
+
+- Remove `Unlock-SecretStore` plain text parameter set.
 
 ### Fixes
 
@@ -18,8 +22,6 @@ The previous file store cannot be read by the new version and you will need to r
 ### Changes
 
 - Add ProjectUri to manifest file.
-
-- Change `Update-SecretStorePassword` to `Set-SecretStorePassword`.
 
 - `Reset-SecretStore` now defaults to 'No' when prompting to continue.
 

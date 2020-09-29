@@ -14,31 +14,17 @@ namespace Microsoft.PowerShell.SecretStore
     /// Password will remain in effect for the session until the timeout expires.
     /// The password timeout is set in the local store configuration.
     /// </summary>
-    [Cmdlet(VerbsCommon.Unlock, "SecretStore",
-        DefaultParameterSetName = SecureStringParameterSet)]
+    [Cmdlet(VerbsCommon.Unlock, "SecretStore")]
     public sealed class UnlockSecretStoreCommand : PSCmdlet
     {
-        #region Members
-
-        private const string StringParameterSet = "StringParameterSet";
-        private const string SecureStringParameterSet = "SecureStringParameterSet";
-
-        #endregion
-
         #region Parameters
 
         /// <summary>
-        /// Gets or sets a plain text password.
+        /// Gets or sets a password as a SecureString.
         /// </summary>
-        [Parameter(ParameterSetName=StringParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public string Password { get; set; }
-
-        /// <summary>
-        /// Gets or sets a SecureString password.
-        /// </summary>
-        [Parameter(Mandatory=true, ValueFromPipeline=true, ValueFromPipelineByPropertyName=true, ParameterSetName=SecureStringParameterSet)]
-        public SecureString SecureStringPassword { get; set; }
+        [Parameter(Position=0, Mandatory=true, ValueFromPipeline=true, ValueFromPipelineByPropertyName=true)]
+        [ValidateNotNull]
+        public SecureString Password { get; set; }
 
         /// <summary>
         /// Gets or sets a password timeout value in seconds.
@@ -53,10 +39,9 @@ namespace Microsoft.PowerShell.SecretStore
 
         protected override void EndProcessing()
         {
-            var passwordToSet = (ParameterSetName == StringParameterSet) ? Utils.ConvertToSecureString(Password) : SecureStringPassword;
             LocalSecretStore.GetInstance(
-                password: passwordToSet).UnlockLocalStore(
-                    password: passwordToSet,
+                password: Password).UnlockLocalStore(
+                    password: Password,
                     passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
                         (int?)PasswordTimeout : null);
         }
@@ -145,7 +130,7 @@ namespace Microsoft.PowerShell.SecretStore
         public int PasswordTimeout { get; set; }
 
         [Parameter(ParameterSetName = ParameterSet)]
-        public Interaction UserInteraction { get; set; }
+        public Interaction Interaction { get; set; }
 
         [Parameter(ParameterSetName = DefaultParameterSet)]
         public SwitchParameter Default { get; set; }
@@ -197,7 +182,7 @@ namespace Microsoft.PowerShell.SecretStore
                     scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : oldConfigData.Scope,
                     authentication: MyInvocation.BoundParameters.ContainsKey(nameof(Authentication)) ? Authentication : oldConfigData.Authentication,
                     passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : oldConfigData.PasswordTimeout,
-                    userInteraction: MyInvocation.BoundParameters.ContainsKey(nameof(UserInteraction)) ? UserInteraction : oldConfigData.UserInteraction);
+                    interaction: MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : oldConfigData.Interaction);
             }
             else
             {
@@ -245,7 +230,7 @@ namespace Microsoft.PowerShell.SecretStore
         public int PasswordTimeout { get; set; }
 
         [Parameter]
-        public Interaction UserInteraction { get; set; }
+        public Interaction Interaction { get; set; }
 
         [Parameter]
         public SwitchParameter Force { get; set; }
@@ -288,7 +273,7 @@ namespace Microsoft.PowerShell.SecretStore
                 scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : defaultConfigData.Scope,
                 authentication: MyInvocation.BoundParameters.ContainsKey(nameof(Authentication)) ? Authentication : defaultConfigData.Authentication,
                 passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : defaultConfigData.PasswordTimeout,
-                userInteraction: MyInvocation.BoundParameters.ContainsKey(nameof(UserInteraction)) ? UserInteraction : defaultConfigData.UserInteraction);
+                interaction: MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : defaultConfigData.Interaction);
 
             if (!SecureStoreFile.RemoveStoreFile(out string errorMsg))
             {

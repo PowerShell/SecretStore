@@ -13,8 +13,8 @@ Resets the SecretStore by deleting all secret data and configuring the store wit
 ## SYNTAX
 
 ```
-Reset-SecretStore [-Scope <SecureStoreScope>] [-Authentication] [-PasswordTimeout <Int32>] [-UserInteraction]
- [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
+Reset-SecretStore [-Scope <SecureStoreScope>] [-Authentication <Authenticate>] [-PasswordTimeout <Int32>]
+ [-Interaction <Interaction>] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -33,11 +33,9 @@ Reset SecretStore
 Are you sure you want to erase all secrets in SecretStore and reset configuration settings to default?
 [Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "N"): Y
 
-      Scope Authentication PasswordTimeout UserInteraction
-      ----- -------------- --------------- ---------------
-CurrentUser       Password             900       Prompting
-
-PS C:\>
+      Scope Authentication PasswordTimeout Interaction
+      ----- -------------- --------------- -----------
+CurrentUser       Password             900      Prompt
 ```
 
 This example resets the SecretStore for the current user, by deleting all secrets and forcing configuration settings to default values.
@@ -113,12 +111,12 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -UserInteraction
+### -Interaction
 Configuration option to allow or suppress user prompting.
-Configuration options are 'Prompting' or 'None'.
+Configuration options are 'Prompt' or 'None'.
 When 'None' is selected, no prompt will be presented in an interactive session to provide a session password.
-Default value is 'Prompting', and users will be prompted for password when needed.
-When 'None is selected and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
+Default value is 'Prompt', and users will be prompted for password when needed.
+When 'None' is selected and a session password is required, a Microsoft.PowerShell.SecretStore.PasswordRequiredException error is thrown.
 
 ```yaml
 Type: Interaction
@@ -127,7 +125,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: Prompting
+Default value: Prompt
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -142,7 +140,7 @@ Aliases: cf
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -158,7 +156,7 @@ Aliases: wi
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

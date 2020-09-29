@@ -30,9 +30,9 @@ The default configuration is set to for best security and interactive use.
 ```powershell
 Get-SecretStoreConfiguration
 
-      Scope Authentication PasswordTimeout UserInteraction
-      ----- -------------- --------------- ---------------
-CurrentUser       Password             900       Prompting
+      Scope Authentication PasswordTimeout Interaction
+      ----- -------------- --------------- -----------
+CurrentUser       Password             900      Prompt
 ```
 
 ### SecretStore cmdlets
@@ -51,9 +51,9 @@ Individual configuration options can be set, or the store can be configured to d
 ```powershell
 Set-SecretStoreConfiguration -PasswordTimeout 30
 
-      Scope Authentication PasswordTimeout UserInteraction
-      ----- -------------- --------------- ---------------
-CurrentUser       Password              30       Prompting
+      Scope Authentication PasswordTimeout Interaction
+      ----- -------------- --------------- -----------
+CurrentUser       Password              30      Prompt
 ```
 
 #### Unlock-SecretStore
