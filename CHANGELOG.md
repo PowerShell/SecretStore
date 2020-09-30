@@ -4,7 +4,7 @@
 
 ### Breaking Changes
 
-This version of secretStore is incompatible with previous versions because the configuration format has changed.
+This version of SecretStore is incompatible with previous versions because the configuration format has changed.
 The previous file store cannot be read by the new version and you will need to reset the store `Reset-SecretStore` after installing the new version.  
 
 !!! Be sure and save your current stored secrets so they can be re-added !!!
