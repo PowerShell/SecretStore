@@ -12,7 +12,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
         if ((Get-Module -Name Microsoft.PowerShell.SecretStore -ErrorAction Ignore) -eq $null)
         {
-            Import-Module -Name Microsoft.PowerShell.SecretStore.psd1
+            Import-Module -Name Microsoft.PowerShell.SecretStore
         }
 
         <#
@@ -34,8 +34,8 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         # Reset the SecretStore and configure it for no-password access
         # This deletes all SecretStore data!!
         Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
-        Reset-SecretStore -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout -1 -DoNotPrompt -Force
-        $null = Set-SecretStoreConfiguration -Scope CurrentUser -PasswordRequired:$false -PasswordTimeout -1 -DoNotPrompt -Force
+        Reset-SecretStore -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
+        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
     }
 
     Context "SecretStore file permission tests" {
@@ -115,34 +115,24 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         else
         {
             # drwx------ 2 <user> <user> 4096 Jun 30 16:03 <path>
-            $userName = [System.Environment]::GetEnvironmentVariable("USER")
-
             It "Verifies SecretStore directory permissions" {
                 $permissions = (ls -ld "$storePath").Split(' ')
                 $permissions[0] | Should -BeExactly 'drwx------'
-                $permissions[2] | Should -BeExactly $userName
-                $permissions[3] | Should -BeExactly $userName
             }
 
             It "Verfies SecretStore configuration file permissions" {
                 $permissions = (ls -ld "$storeConfigFilePath").Split(' ')
                 $permissions[0] | Should -BeExactly '-rw-------'
-                $permissions[2] | Should -BeExactly $userName
-                $permissions[3] | Should -BeExactly $userName
             }
 
             It "Verifes SecretStore file permissions" {
                 $permissions = (ls -ld "$storeFilePath").Split(' ')
                 $permissions[0] | Should -BeExactly '-rw-------'
-                $permissions[2] | Should -BeExactly $userName
-                $permissions[3] | Should -BeExactly $userName
             }
 
             It "Verifes SecretStore key file permissions" {
                 $permissions = (ls -ld "$storeKeyFilePath").Split(' ')
                 $permissions[0] | Should -BeExactly '-rw-------'
-                $permissions[2] | Should -BeExactly $userName
-                $permissions[3] | Should -BeExactly $userName
             }
         }
     }
@@ -152,9 +142,9 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         It "Verifies SecretStore configuration for tests" {
             $config = Get-SecretStoreConfiguration
             $config.Scope | Should -BeExactly "CurrentUser"
-            $config.PasswordRequired | Should -BeFalse
+            $config.Authentication | Should -BeExactly "None"
             $config.PasswordTimeout | Should -Be -1
-            $config.DoNotPrompt | Should -BeTrue
+            $config.Interaction | Should -BeExactly "None"
         }
 
         It "Verifies SecretStore AllUsers option is not implement" {
@@ -162,7 +152,8 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
 
         It "Verifies Unlock-SecretStore throws expected error when in no password mode" {
-            { Unlock-SecretStore -Password None } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
+            $token = ConvertTo-SecureString -String "None" -AsPlainText -Force
+            { Unlock-SecretStore -Password $token } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
         }
     }
 

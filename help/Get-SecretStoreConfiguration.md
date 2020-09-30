@@ -8,7 +8,7 @@ schema: 2.0.0
 # Get-SecretStoreConfiguration
 
 ## SYNOPSIS
-Writes SecretStore configuration information.
+Returns SecretStore configuration information.
 
 ## SYNTAX
 
@@ -22,11 +22,11 @@ Configuration information includes:
 
 - Scope
 
-- PasswordRequired
+- Authentication
 
 - PasswordTimeout (in seconds)
 
-- DoNotPrompt
+- Interaction
 
 ## EXAMPLES
 
@@ -34,18 +34,16 @@ Configuration information includes:
 ```powershell
 PS C:\> Get-SecretStoreConfiguration
 
-      Scope PasswordRequired PasswordTimeout DoNotPrompt
-      ----- ---------------- --------------- -----------
-CurrentUser             True             300       False
-
-PS C:\>
+      Scope Authentication PasswordTimeout Interaction
+      ----- -------------- --------------- -----------
+CurrentUser       Password             900      Prompt
 ```
 
 This example runs the command from a command shell prompt and displays four SecretStore configuration properties:  
-Scope is 'CurrentUser'.  
-A password is required to access the SecretStore.  
-A session password timeout time is 5 minutes.  
-The user will be prompted for a password if the command is run in an interactive session.
+Scope : 'CurrentUser'.  
+Authentication : A password is required to access the SecretStore.  
+PasswordTimeout : The session password timeout time is 15 minutes.  
+Interaction : The user will be prompted for a password if the command is run in an interactive session.  
 
 ## PARAMETERS
 
@@ -62,7 +60,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## NOTES
 
-Currently, configuration scope is always 'CurrentUser'.
-'AllUsers' scope is not supported.
+'AllUsers' scope is currently not supported.  Configuration scope is always 'CurrentUser'.
 
 ## RELATED LINKS

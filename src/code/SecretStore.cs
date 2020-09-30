@@ -14,31 +14,17 @@ namespace Microsoft.PowerShell.SecretStore
     /// Password will remain in effect for the session until the timeout expires.
     /// The password timeout is set in the local store configuration.
     /// </summary>
-    [Cmdlet(VerbsCommon.Unlock, "SecretStore",
-        DefaultParameterSetName = SecureStringParameterSet)]
+    [Cmdlet(VerbsCommon.Unlock, "SecretStore")]
     public sealed class UnlockSecretStoreCommand : PSCmdlet
     {
-        #region Members
-
-        private const string StringParameterSet = "StringParameterSet";
-        private const string SecureStringParameterSet = "SecureStringParameterSet";
-
-        #endregion
-
         #region Parameters
 
         /// <summary>
-        /// Gets or sets a plain text password.
+        /// Gets or sets a password as a SecureString.
         /// </summary>
-        [Parameter(ParameterSetName=StringParameterSet)]
-        [ValidateNotNullOrEmpty]
-        public string Password { get; set; }
-
-        /// <summary>
-        /// Gets or sets a SecureString password.
-        /// </summary>
-        [Parameter(Mandatory=true, ValueFromPipeline=true, ValueFromPipelineByPropertyName=true, ParameterSetName=SecureStringParameterSet)]
-        public SecureString SecureStringPassword { get; set; }
+        [Parameter(Position=0, Mandatory=true, ValueFromPipeline=true, ValueFromPipelineByPropertyName=true)]
+        [ValidateNotNull]
+        public SecureString Password { get; set; }
 
         /// <summary>
         /// Gets or sets a password timeout value in seconds.
@@ -53,10 +39,9 @@ namespace Microsoft.PowerShell.SecretStore
 
         protected override void EndProcessing()
         {
-            var passwordToSet = (ParameterSetName == StringParameterSet) ? Utils.ConvertToSecureString(Password) : SecureStringPassword;
             LocalSecretStore.GetInstance(
-                password: passwordToSet).UnlockLocalStore(
-                    password: passwordToSet,
+                password: Password).UnlockLocalStore(
+                    password: Password,
                     passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
                         (int?)PasswordTimeout : null);
         }
@@ -66,13 +51,13 @@ namespace Microsoft.PowerShell.SecretStore
 
     #endregion
 
-    #region Update-SecretStorePassword
+    #region Set-SecretStorePassword
 
     /// <summary>
     /// Updates the local store password to the new password provided.
     /// </summary>
-    [Cmdlet(VerbsData.Update, "SecretStorePassword")]
-    public sealed class UpdateSecretStorePasswordCommand : PSCmdlet
+    [Cmdlet(VerbsCommon.Set, "SecretStorePassword")]
+    public sealed class SetSecretStorePasswordCommand : PSCmdlet
     {
         #region Overrides
 
@@ -138,14 +123,14 @@ namespace Microsoft.PowerShell.SecretStore
         public SecureStoreScope Scope { get; set; }
 
         [Parameter(ParameterSetName = ParameterSet)]
-        public SwitchParameter PasswordRequired { get; set; }
+        public Authenticate Authentication { get; set; }
 
         [Parameter(ParameterSetName = ParameterSet)]
         [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         [Parameter(ParameterSetName = ParameterSet)]
-        public SwitchParameter DoNotPrompt { get; set; }
+        public Interaction Interaction { get; set; }
 
         [Parameter(ParameterSetName = DefaultParameterSet)]
         public SwitchParameter Default { get; set; }
@@ -156,6 +141,19 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
 
         #region Overrides
+
+        protected override void BeginProcessing()
+        {
+            if (MyInvocation.BoundParameters.Count == 0)
+            {
+                ThrowTerminatingError(
+                    new ErrorRecord(
+                        exception: new PSInvalidOperationException("No parameter arguments were specified. Terminating operation."),
+                        errorId: "SecretSToreSetConfigurationNoParameterArguments",
+                        errorCategory: ErrorCategory.InvalidOperation,
+                        this));
+            }
+        }
 
         protected override void EndProcessing()
         {
@@ -182,9 +180,9 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 newConfigData = new SecureStoreConfig(
                     scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : oldConfigData.Scope,
-                    passwordRequired: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordRequired)) ? (bool)PasswordRequired : oldConfigData.PasswordRequired,
+                    authentication: MyInvocation.BoundParameters.ContainsKey(nameof(Authentication)) ? Authentication : oldConfigData.Authentication,
                     passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : oldConfigData.PasswordTimeout,
-                    doNotPrompt: MyInvocation.BoundParameters.ContainsKey(nameof(DoNotPrompt)) ? (bool)DoNotPrompt : oldConfigData.DoNotPrompt);
+                    interaction: MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : oldConfigData.Interaction);
             }
             else
             {
@@ -225,14 +223,14 @@ namespace Microsoft.PowerShell.SecretStore
         public SecureStoreScope Scope { get; set; }
 
         [Parameter]
-        public SwitchParameter PasswordRequired { get; set; }
+        public Authenticate Authentication { get; set; }
 
         [Parameter]
         [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         [Parameter]
-        public SwitchParameter DoNotPrompt { get; set; }
+        public Interaction Interaction { get; set; }
 
         [Parameter]
         public SwitchParameter Force { get; set; }
@@ -258,9 +256,14 @@ namespace Microsoft.PowerShell.SecretStore
 
         protected override void EndProcessing()
         {
-            if (!Force && !ShouldProcess(
-                target: "SecretStore module local store",
-                action: "Erase all secrets in the local store and reset the configuration settings to default values"))
+            bool yesToAll = false;
+            bool noToAll = false;
+            if (!Force && !ShouldContinue(
+                query: "Are you sure you want to erase all secrets in SecretStore and reset configuration settings to default?",
+                caption: "Reset SecretStore",
+                hasSecurityImpact: true,
+                ref yesToAll,
+                ref noToAll))
             {
                 return;
             }
@@ -268,9 +271,9 @@ namespace Microsoft.PowerShell.SecretStore
             var defaultConfigData = SecureStoreConfig.GetDefault();
             var newConfigData = new SecureStoreConfig(
                 scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : defaultConfigData.Scope,
-                passwordRequired: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordRequired)) ? (bool)PasswordRequired : defaultConfigData.PasswordRequired,
+                authentication: MyInvocation.BoundParameters.ContainsKey(nameof(Authentication)) ? Authentication : defaultConfigData.Authentication,
                 passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : defaultConfigData.PasswordTimeout,
-                doNotPrompt: MyInvocation.BoundParameters.ContainsKey(nameof(DoNotPrompt)) ? (bool)DoNotPrompt : defaultConfigData.DoNotPrompt);
+                interaction: MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : defaultConfigData.Interaction);
 
             if (!SecureStoreFile.RemoveStoreFile(out string errorMsg))
             {

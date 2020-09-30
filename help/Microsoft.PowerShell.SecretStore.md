@@ -23,5 +23,5 @@ Applies configuration settings to the SecretStore.
 ### [Unlock-SecretStore](Unlock-SecretStore.md)
 Unlocks the SecretStore with the provided password.
 
-### [Update-SecretStorePassword](Update-SecretStorePassword.md)
+### [Set-SecretStorePassword](Set-SecretStorePassword.md)
 Replaces the current SecretStore password with a new password.

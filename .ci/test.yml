@@ -36,6 +36,11 @@ jobs:
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      Save-Module -Name "Microsoft.PowerShell.SecretManagement" -Path $modulePath -AllowPrerelease -Repository PSGallery -Force
+    displayName: Install Microsoft.PowerShell.SecretManagement
+
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
       Save-Module -Name "platyPS" -Path $modulePath -Force
     displayName: Install platyPS dependency
 
@@ -61,13 +66,13 @@ jobs:
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       Get-Module -Name Pester -ListAvailable
     displayName: Capture Pester module environment
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
       Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
       Import-Module -Name $modPath -Force
@@ -84,31 +89,21 @@ jobs:
       Save-Package -Name $moduleName -Source $sourceName -ProviderName PowerShellGet -Path $config.BuildOutputPath -AllowPrereleaseVersions -Force
     displayName: Extract product artifact
 
-#  - ${{ parameters.powershellExecutable }}: |
-#      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-#      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-#      Get-Module Pester | Remove-Module -Force
-#      $modPath = Join-Path -Path $modulePath -ChildPath Pester
-#      Write-Verbose -Verbose "Importing Pester 4 from: $modPath"
-#      Import-Module -Name $modPath -Force
-#      Get-Module Pester
-#      $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
-#      Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
-#      Import-Module -Name $modPath -Force
-#      Get-Module
-#      #
-#      Invoke-PSPackageProjectTest -Type Functional
-#    displayName: Execute functional tests
-#    errorActionPreference: continue
+  - ${{ parameters.powershellExecutable }}: |
+      $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+      $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+      Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+      Import-Module -Name $modPath -Force
+      Get-Module
+      #
+      Invoke-PSPackageProjectTest -Type Functional
+    displayName: Execute functional tests
+    errorActionPreference: continue
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
-      $env:PSModulePath = $modulePath + ';' + $env:PSModulePath
-      Get-Module Pester | Remove-Module -Force
-      $modPath = Join-Path -Path $modulePath -ChildPath Pester
-      Write-Verbose -Verbose "Importing Pester 4 from: $modPath"
-      Import-Module -Name $modPath -Force
-      Get-Module Pester
+      $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
       $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
       Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
       Import-Module -Name $modPath -Force
