@@ -10,6 +10,9 @@ pr:
     include:
     - master
 
+variables:
+  - group: ESRP
+
 stages:
 - stage: Build
   displayName: Build SecretStore Module Package
@@ -18,7 +21,6 @@ stages:
     displayName: Build Package
     pool:
       name: Package ES CodeHub Lab E
-
     steps:
     - powershell: |
         $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
@@ -40,14 +42,6 @@ stages:
       inputs:
         checkLatest: false
         version: 5.6.0
-
-    - task: PkgESSetupBuild@10
-      displayName: 'Package ES - Setup Build'
-      inputs:
-        productName: PSSecretStore
-        useDfs: false
-        branchVersion: true
-        disableMsbuildVersion: true
 
     - pwsh: |
         Get-ChildItem -Path env:
@@ -103,38 +97,30 @@ stages:
         if (! (Test-Path -Path $signOutPath)) {
           $null = New-Item -Path $signOutPath -ItemType Directory
         }
-        Write-Host "Signed output path is: $signOutPath"
-        $signXmlPath = "$($config.SourcePath)\..\sign-module-files.xml"
+        
         # Set signing src path variable
         $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
+
         # Set signing out path variable
         $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
-        # Set signing xml path
-        $vstsCommandString = "vso[task.setvariable variable=signXmlPath]${signXmlPath}"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
       displayName: Set up for code signing
+      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
 
     - pwsh: |
         Get-ChildItem -Path env:
       displayName: Capture environment for module code signing
       condition: succeededOrFailed()
 
-    - task: PkgESCodeSign@10
-      displayName: Sign build files
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      inputs:
-        signConfigXml: '$(signXmlPath)'
-        inPathRoot: '$(signSrcPath)'
-        outPathRoot: '$(signOutPath)'
-        binVersion: Production
-        binVersionOverride: ''
-      condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), ne(variables['SkipSigning'], 'True'))
+    - template: ./templates/sign.yml
+      parameters:
+        buildOutputPath: $(signSrcPath)
+        signOutputPath: $(signOutPath)
+        certificateId: "CP-230012"
+        pattern: '*.dll,*.psd1,*.psm1'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
