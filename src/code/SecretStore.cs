@@ -136,6 +136,9 @@ namespace Microsoft.PowerShell.SecretStore
         public SwitchParameter Default { get; set; }
 
         [Parameter]
+        public SwitchParameter PassThru { get; set; }
+
+        [Parameter]
         public SwitchParameter Force { get; set; }
 
         #endregion
@@ -202,7 +205,10 @@ namespace Microsoft.PowerShell.SecretStore
                         this));
             }
 
-            WriteObject(newConfigData);
+            if (PassThru.IsPresent)
+            {
+                WriteObject(newConfigData);
+            }
         }
 
         #endregion

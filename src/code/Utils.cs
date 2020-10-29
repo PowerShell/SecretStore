@@ -197,6 +197,11 @@ namespace Microsoft.PowerShell.SecretStore
                 // Initial prompt
                 cmdlet.Host.UI.WriteLine("Enter password:");
                 password = cmdlet.Host.UI.ReadLineAsSecureString();
+                if (password.Length == 0)
+                {
+                    cmdlet.Host.UI.WriteLine("\nThe entered password cannot be empty.  Please re-enter the password.\n");
+                    continue;
+                }
 
                 if (verifyPassword)
                 {
@@ -978,7 +983,14 @@ namespace Microsoft.PowerShell.SecretStore
                         throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
                     }
 
-                    return _password?.Copy() ?? null;
+                    var returnPassword = _password?.Copy() ?? null;
+                    if (_password != null && _configData.PasswordTimeout == 0)
+                    {
+                        // PasswordTimeout == 0, means password is only used once.
+                        _password = null;
+                    }
+
+                    return returnPassword;
                 }
             }
         }
@@ -1148,6 +1160,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            SecureString password,
             out string errorMsg)
         {
             if (EnumerateBlobs(
@@ -1160,6 +1173,7 @@ namespace Microsoft.PowerShell.SecretStore
                     blob,
                     typeName,
                     attributes,
+                    password,
                     out errorMsg);
             }
 
@@ -1168,11 +1182,13 @@ namespace Microsoft.PowerShell.SecretStore
                 blob,
                 typeName,
                 attributes,
+                password,
                 out errorMsg);
         }
 
         public bool ReadBlob(
             string name,
+            SecureString password,
             out byte[] blob,
             out SecureStoreMetadata metaData,
             out string errorMsg)
@@ -1200,18 +1216,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
             
             // Decrypt blob
-            var password = Password;
-            try
-            {
-                blob = CryptoUtils.DecryptWithKey(
-                    passWord: password,
-                    key: key,
-                    data: encryptedBlob);
-            }
-            finally
-            {
-                password?.Clear();
-            }
+            blob = CryptoUtils.DecryptWithKey(
+                passWord: password,
+                key: key,
+                data: encryptedBlob);
 
             return true;
         }
@@ -1251,6 +1259,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public bool DeleteBlob(
             string name,
+            SecureString password,
             out string errorMsg)
         {
             lock (_syncObject)
@@ -1289,18 +1298,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Write to file
-            var password = Password;
-            try
-            {
-                return SecureStoreFile.WriteFile(
-                    password: password,
-                    data: _data,
-                    out errorMsg);
-            }
-            finally
-            {
-                password?.Clear();
-            }
+            return SecureStoreFile.WriteFile(
+                password: password,
+                data: _data,
+                out errorMsg);
         }
 
         public bool UpdateConfigData(
@@ -1407,20 +1408,12 @@ namespace Microsoft.PowerShell.SecretStore
         public void UpdateDataFromFile()
         {
             SecureStoreData data;
-            SecureString password = Password;
-            try
+            if (!SecureStoreFile.ReadFile(
+                password: _password,
+                data: out data,
+                out string _))
             {
-                if (!SecureStoreFile.ReadFile(
-                    password: Password,
-                    data: out data,
-                    out string _))
-                {
-                    data = SecureStoreData.CreateEmpty();
-                }
-            }
-            finally
-            {
-                password?.Clear();
+                data = SecureStoreData.CreateEmpty();
             }
             
             lock (_syncObject)
@@ -1543,56 +1536,49 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            SecureString password,
             out string errorMsg)
         {
-            var password = Password;
-            try
+            var newData = new SecureStoreData();
+            newData.MetaData = _data.MetaData;
+            newData.Key = _data.Key;
+
+            // Encrypt blob
+            var blobToWrite = CryptoUtils.EncryptWithKey(
+                passWord: password,
+                key: _data.Key,
+                data: blob);
+
+            lock (_syncObject)
             {
-                var newData = new SecureStoreData();
-                newData.MetaData = _data.MetaData;
-                newData.Key = _data.Key;
+                // Create new store blob
+                var oldBlob = _data.Blob;
+                var offset = oldBlob.Length;
+                var newBlob = new byte[offset + blobToWrite.Length];
+                Buffer.BlockCopy(oldBlob, 0, newBlob, 0, offset);
+                Buffer.BlockCopy(blobToWrite, 0, newBlob, offset, blobToWrite.Length);
+                newData.Blob = newBlob;
 
-                // Encrypt blob
-                var blobToWrite = CryptoUtils.EncryptWithKey(
-                    passWord: password,
-                    key: _data.Key,
-                    data: blob);
+                // Create new meta item
+                newData.MetaData.Add(
+                    key: name,
+                    value: new SecureStoreMetadata(
+                        name: name,
+                        typeName: typeName,
+                        offset: offset,
+                        size: blobToWrite.Length,
+                        attributes: new ReadOnlyDictionary<string, object>(attributes)));
 
-                lock (_syncObject)
-                {
-                    // Create new store blob
-                    var oldBlob = _data.Blob;
-                    var offset = oldBlob.Length;
-                    var newBlob = new byte[offset + blobToWrite.Length];
-                    Buffer.BlockCopy(oldBlob, 0, newBlob, 0, offset);
-                    Buffer.BlockCopy(blobToWrite, 0, newBlob, offset, blobToWrite.Length);
-                    newData.Blob = newBlob;
-
-                    // Create new meta item
-                    newData.MetaData.Add(
-                        key: name,
-                        value: new SecureStoreMetadata(
-                            name: name,
-                            typeName: typeName,
-                            offset: offset,
-                            size: blobToWrite.Length,
-                            attributes: new ReadOnlyDictionary<string, object>(attributes)));
-
-                    // Update store data
-                    _data = newData;
-                    CryptoUtils.ZeroOutData(oldBlob);
-                }
-
-                // Write to file
-                return SecureStoreFile.WriteFile(
-                    password: password,
-                    data: _data,
-                    out errorMsg);
+                // Update store data
+                _data = newData;
+                CryptoUtils.ZeroOutData(oldBlob);
             }
-            finally
-            {
-                password?.Clear();
-            }
+
+            // Write to file
+            return SecureStoreFile.WriteFile(
+                password: password,
+                data: _data,
+                out errorMsg);
         }
 
         private bool ReplaceBlobImpl(
@@ -1600,6 +1586,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            SecureString password,
             out string errorMsg)
         {
             lock (_syncObject)
@@ -1607,6 +1594,7 @@ namespace Microsoft.PowerShell.SecretStore
                 // Remove old blob
                 if (!DeleteBlob(
                     name: name,
+                    password: password,
                     out errorMsg))
                 {
                     errorMsg = "Unable to replace existing store item, error: " + errorMsg;
@@ -1619,6 +1607,7 @@ namespace Microsoft.PowerShell.SecretStore
                     blob: blob,
                     typeName: typeName,
                     attributes: attributes,
+                    password: password,
                     out errorMsg);
             }
         }
@@ -2881,41 +2870,18 @@ namespace Microsoft.PowerShell.SecretStore
             T objectToWrite,
             out string errorMsg)
         {
-            switch (objectToWrite)
+            var password = _secureStore.Password;
+            try
             {
-                case byte[] blobToWrite:
-                    return WriteBlob(
-                        name,
-                        blobToWrite,
-                        ByteArrayType,
-                        out errorMsg);
-
-                case string stringToWrite:
-                    return WriteString(
-                        name,
-                        stringToWrite,
-                        out errorMsg);
-
-                case SecureString secureStringToWrite:
-                    return WriteSecureString(
-                        name,
-                        secureStringToWrite,
-                        out errorMsg);
-
-                case PSCredential credentialToWrite:
-                    return WritePSCredential(
-                        name,
-                        credentialToWrite,
-                        out errorMsg);
-
-                case Hashtable hashtableToWrite:
-                    return WriteHashtable(
-                        name,
-                        hashtableToWrite,
-                        out errorMsg);
-                
-                default:
-                    throw new InvalidOperationException("Invalid type. Types supported: byte[], string, SecureString, PSCredential, Hashtable");
+                return WriteObjectImpl(
+                    name,
+                    objectToWrite,
+                    password,
+                    out errorMsg);
+            }
+            finally
+            {
+                password?.Clear();
             }
         }
 
@@ -2924,47 +2890,56 @@ namespace Microsoft.PowerShell.SecretStore
             out object outObject,
             out string errorMsg)
         {
-            if (!ReadBlob(
-                name,
-                out byte[] outBlob,
-                out string typeName,
-                out errorMsg))
+            var password = _secureStore.Password;
+            try
             {
-                outObject = null;
-                return false;
+                return ReadObjectImpl(
+                    name,
+                    password,
+                    out outObject,
+                    out errorMsg);
             }
-
-            errorMsg = string.Empty;
-            switch (typeName)
+            finally
             {
-                case ByteArrayType:
-                    outObject = outBlob;
-                    return true;
+                password?.Clear();
+            }
+        }
 
-                case StringType:
-                    return ReadString(
-                        outBlob,
-                        out outObject);
+        public bool DeleteObject(
+            string name,
+            out string errorMsg)
+        {
+            var password = _secureStore.Password;
 
-                case SecureStringType:
-                    return ReadSecureString(
-                        outBlob,
-                        out outObject);
+            try
+            {
+                if (!ReadObjectImpl(
+                    name,
+                    password,
+                    out object outObject,
+                    out errorMsg))
+                {
+                    return false;
+                }
 
-                case PSCredentialType:
-                    return ReadPSCredential(
-                        outBlob,
-                        out outObject);
-                
-                case HashtableType:
-                    return ReadHashtable(
-                        name,
-                        outBlob,
-                        out outObject,
-                        out errorMsg);
+                switch (outObject)
+                {
+                    case Hashtable hashtable:
+                        return DeleteHashtable(
+                            name,
+                            password,
+                            out errorMsg);
 
-                default:
-                    throw new InvalidOperationException("Invalid type. Types supported: byte[], string, SecureString, PSCredential, Hashtable");
+                    default:
+                        return DeleteBlob(
+                            name,
+                            password,
+                            out errorMsg);
+                }
+            }
+            finally
+            {
+                password?.Clear();
             }
         }
 
@@ -3033,32 +3008,6 @@ namespace Microsoft.PowerShell.SecretStore
             outSecretInfo = outList.ToArray();
             errorMsg = string.Empty;
             return true;
-        }
-
-        public bool DeleteObject(
-            string name,
-            out string errorMsg)
-        {
-            if (!ReadObject(
-                name: name,
-                outObject: out object outObject,
-                out errorMsg))
-            {
-                return false;
-            }
-
-            switch (outObject)
-            {
-                case Hashtable hashtable:
-                    return DeleteHashtable(
-                        name,
-                        out errorMsg);
-
-                default:
-                    return DeleteBlob(
-                        name,
-                        out errorMsg);
-            }
         }
 
         #endregion
@@ -3163,10 +3112,112 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Blob methods
 
+        private bool ReadObjectImpl(
+            string name,
+            SecureString password,
+            out object outObject,
+            out string errorMsg)
+        {
+            if (!ReadBlob(
+                name,
+                password,
+                out byte[] outBlob,
+                out string typeName,
+                out errorMsg))
+            {
+                outObject = null;
+                return false;
+            }
+
+            errorMsg = string.Empty;
+            switch (typeName)
+            {
+                case ByteArrayType:
+                    outObject = outBlob;
+                    return true;
+
+                case StringType:
+                    return ReadString(
+                        outBlob,
+                        out outObject);
+
+                case SecureStringType:
+                    return ReadSecureString(
+                        outBlob,
+                        out outObject);
+
+                case PSCredentialType:
+                    return ReadPSCredential(
+                        outBlob,
+                        out outObject);
+                
+                case HashtableType:
+                    return ReadHashtable(
+                        name,
+                        outBlob,
+                        password,
+                        out outObject,
+                        out errorMsg);
+
+                default:
+                    throw new InvalidOperationException("Invalid type. Types supported: byte[], string, SecureString, PSCredential, Hashtable");
+            }
+        }
+
+        private bool WriteObjectImpl<T>(
+            string name,
+            T objectToWrite,
+            SecureString password,
+            out string errorMsg)
+        {
+            switch (objectToWrite)
+            {
+                case byte[] blobToWrite:
+                    return WriteBlob(
+                        name,
+                        blobToWrite,
+                        ByteArrayType,
+                        password,
+                        out errorMsg);
+
+                case string stringToWrite:
+                    return WriteString(
+                        name,
+                        stringToWrite,
+                        password,
+                        out errorMsg);
+
+                case SecureString secureStringToWrite:
+                    return WriteSecureString(
+                        name,
+                        secureStringToWrite,
+                        password,
+                        out errorMsg);
+
+                case PSCredential credentialToWrite:
+                    return WritePSCredential(
+                        name,
+                        credentialToWrite,
+                        password,
+                        out errorMsg);
+
+                case Hashtable hashtableToWrite:
+                    return WriteHashtable(
+                        name,
+                        hashtableToWrite,
+                        password,
+                        out errorMsg);
+                
+                default:
+                    throw new InvalidOperationException("Invalid type. Types supported: byte[], string, SecureString, PSCredential, Hashtable");
+            }
+        }
+        
         private bool WriteBlob(
             string name,
             byte[] blob,
             string typeName,
+            SecureString password,
             out string errorMsg)
         {
             return _secureStore.WriteBlob(
@@ -3174,17 +3225,20 @@ namespace Microsoft.PowerShell.SecretStore
                 blob: blob,
                 typeName: typeName,
                 attributes: DefaultTag,
+                password: password,
                 errorMsg: out errorMsg);
         }
 
         private bool ReadBlob(
             string name,
+            SecureString password,
             out byte[] blob,
             out string typeName,
             out string errorMsg)
         {
             if (!_secureStore.ReadBlob(
                 name: name,
+                password: password,
                 blob: out blob,
                 metaData: out SecureStoreMetadata metadata,
                 errorMsg: out errorMsg))
@@ -3237,10 +3291,12 @@ namespace Microsoft.PowerShell.SecretStore
 
         private bool DeleteBlob(
             string name,
+            SecureString password,
             out string errorMsg)
         {
             return _secureStore.DeleteBlob(
                 name: name,
+                password: password,
                 errorMsg: out errorMsg);
         }
 
@@ -3251,12 +3307,14 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteString(
             string name,
             string strToWrite,
+            SecureString password,
             out string errorMsg)
         {
             return WriteBlob(
                 name: name,
                 blob: Encoding.UTF8.GetBytes(strToWrite),
                 typeName: StringType,
+                password: password,
                 errorMsg: out errorMsg);
         }
 
@@ -3285,6 +3343,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteStringArray(
             string name,
             string[] strsToWrite,
+            SecureString password,
             out string errorMsg)
         {
             // Compute blob size
@@ -3335,6 +3394,7 @@ namespace Microsoft.PowerShell.SecretStore
                 name: name,
                 blob: blob,
                 typeName: HashtableType,
+                password: password,
                 errorMsg: out errorMsg);
         }
 
@@ -3366,6 +3426,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteSecureString(
             string name,
             SecureString strToWrite,
+            SecureString password,
             out string errorMsg)
         {
             if (Utils.GetDataFromSecureString(
@@ -3378,6 +3439,7 @@ namespace Microsoft.PowerShell.SecretStore
                         name: name,
                         blob: data,
                         typeName: SecureStringType,
+                        password: password,
                         errorMsg: out errorMsg);
                 }
                 finally
@@ -3427,6 +3489,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WritePSCredential(
             string name,
             PSCredential credential,
+            SecureString password,
             out string errorMsg)
         {
             if (Utils.GetDataFromSecureString(
@@ -3466,6 +3529,7 @@ namespace Microsoft.PowerShell.SecretStore
                         name: name,
                         blob: blob,
                         typeName: PSCredentialType,
+                        password: password,
                         errorMsg: out errorMsg);
                 }
                 finally
@@ -3539,6 +3603,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteHashtable(
             string name,
             Hashtable hashtable,
+            SecureString password,
             out string errorMsg)
         {
             // Impose size limit
@@ -3586,6 +3651,7 @@ namespace Microsoft.PowerShell.SecretStore
             if (!WriteStringArray(
                 name: name,
                 strsToWrite: hashTableEntryNames.ToArray(),
+                password: password,
                 errorMsg: out errorMsg))
             {
                 return false;
@@ -3597,9 +3663,10 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 foreach (var entry in entries)
                 {
-                    success = WriteObject(
+                    success = WriteObjectImpl(
                         name: entry.Key,
                         objectToWrite: entry.Value,
+                        password: password,
                         errorMsg: out errorMsg);
                     
                     if (!success)
@@ -3620,12 +3687,14 @@ namespace Microsoft.PowerShell.SecretStore
                     {
                         DeleteBlob(
                             name: entry.Key,
+                            password: password,
                             errorMsg: out string _);
                     }
 
                     // Remove the Hashtable member names.
                     DeleteBlob(
                         name: name,
+                        password: password,
                         errorMsg: out string _);
                 }
             }
@@ -3634,6 +3703,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool ReadHashtable(
             string name,
             byte[] blob,
+            SecureString password,
             out object outHashtable,
             out string errorMsg)
         {
@@ -3646,8 +3716,9 @@ namespace Microsoft.PowerShell.SecretStore
             var hashtable = new Hashtable();
             foreach (var entryName in entryNames)
             {
-                if (ReadObject(
+                if (ReadObjectImpl(
                     entryName,
+                    password,
                     out object outObject,
                     out errorMsg))
                 {
@@ -3664,11 +3735,13 @@ namespace Microsoft.PowerShell.SecretStore
 
         private bool DeleteHashtable(
             string name,
+            SecureString password,
             out string errorMsg)
         {
             // Get array of Hashtable secret names.
             if (!ReadBlob(
                 name,
+                password,
                 out byte[] blob,
                 out string typeName,
                 out errorMsg))
@@ -3685,12 +3758,14 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 DeleteBlob(
                     name: entryName,
+                    password: password,
                     out errorMsg);
             }
 
             // Delete the Hashtable secret names list.
             DeleteBlob(
                 name: name,
+                password: password,
                 out errorMsg);
 
             return true;

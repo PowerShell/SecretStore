@@ -96,6 +96,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -PassThru
+When true, will write the current SecretStore configuration to the pipeline.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -PasswordTimeout
 Configuration option that provides the session password timeout in seconds.
 Takes an argument whose value determines the session password timeout in seconds.
