@@ -26,12 +26,17 @@ Default configuration options can be overridden by specifying individual command
 
 ### Example 1
 ```powershell
-PS C:\> Reset-SecretStore
+PS C:\> Reset-SecretStore -PassThru
 WARNING: !!This operation will completely remove all SecretStore module secrets and reset configuration settings to default values!!
 
 Reset SecretStore
 Are you sure you want to erase all secrets in SecretStore and reset configuration settings to default?
 [Y] Yes  [A] Yes to All  [N] No  [L] No to All  [S] Suspend  [?] Help (default is "N"): Y
+Creating a new Microsoft.PowerShell.SecretStore vault. A password is required by the current store configuration.
+Enter password:
+********
+Enter password again for verification:
+********
 
       Scope Authentication PasswordTimeout Interaction
       ----- -------------- --------------- -----------
@@ -64,6 +69,37 @@ Accept wildcard characters: False
 ### -Force
 When true, the user will not be asked to confirm and the SecretStore will be reset without prompting.
 Default value is false, and user will be asked to confirm the operation.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -Password
+Sets the provided Password to the newly reset store.
+If the reset store is not configured for password authentication, an error will be returned.
+
+```yaml
+Type: SecureString
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value:
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -PassThru
+Writes the newly reset store configuration object (SecureStorConfig) to the pipeline.
 
 ```yaml
 Type: SwitchParameter

@@ -39,7 +39,46 @@ This example runs the command with no parameter arguments.
 The user is first prompted for the old password.
 And then prompted for the new password twice for verification.
 
+### Example 2
+```powershell
+PS C:\> Set-SecretStorePassword -NewPassword $newPassword -Password $oldPassword
+```
+
+This example runs the command passing in both the current store password and the new
+password to be set.
+
 ## PARAMETERS
+
+### -NewPassword
+New password to be applied to the store.
+
+```yaml
+Type: SecureString
+Parameter Sets: ParameterSet
+Aliases:
+
+Required: True
+Position: Named
+Default value:
+Accept pipeline input: True
+Accept wildcard characters: False
+```
+
+### -Password
+Existing password needed to unlock the store.
+This can be ignored if the store doesn't currently use a password.
+
+```yaml
+Type: SecureString
+Parameter Sets: ParameterSet
+Aliases:
+
+Required: False
+Position: Named
+Default value:
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### CommonParameters
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
