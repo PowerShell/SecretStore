@@ -6,7 +6,7 @@
 
 ### Changes
 
-- `Set-SecretStoreConfiguration` now has a `-PassThru` parameter to write the store configuration object to the pipeline, and no longer writes the configuration object by default (Issue #29).
+- `Set-SecretStoreConfiguration` now has a `-PassThru` parameter to write the store configuration object to the pipeline, and no longer writes the configuration object by default (Issue #25).
 
 - A `-PasswordTimeout` value of zero now allows the provided password to be used only once (Issue #30).
 
@@ -16,7 +16,7 @@
 
 - `Reset-SecretStore` now has a new `-Password` and `-PassThru` parameter.
 
-- `Reset-SecretStore` will now prompt immediately for a new password, if password authentication is selected and prompt interaction is allowed.
+- `Reset-SecretStore` will now prompt immediately for a new password, if password authentication is selected and prompt interaction is allowed (Issue #34)
 
 ### New Features
 
