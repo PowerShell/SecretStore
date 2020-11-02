@@ -191,7 +191,7 @@ namespace Microsoft.PowerShell.SecretStore
                     "A password is required for Microsoft.PowerShell.SecretStore vault."
                     : message);
 
-            var isVerified = !verifyPassword;
+            var isVerified = false;
             do
             {
                 // Initial prompt
@@ -216,9 +216,23 @@ namespace Microsoft.PowerShell.SecretStore
                         cmdlet.Host.UI.WriteLine("\nThe two entered passwords do not match.  Please re-enter the passwords.\n");
                     }
                 }
+                else
+                {
+                    isVerified = true;
+                }
             } while (!isVerified);
 
             return password;
+        }
+
+        public static SecureString CheckPassword(SecureString password)
+        {
+            if (password != null && password.Length == 0)
+            {
+                throw new PSInvalidOperationException("A password cannot be empty.");
+            }
+
+            return password?.Copy() ?? null;
         }
 
         #endregion

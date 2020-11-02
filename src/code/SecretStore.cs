@@ -39,11 +39,12 @@ namespace Microsoft.PowerShell.SecretStore
 
         protected override void EndProcessing()
         {
-            LocalSecretStore.GetInstance(
-                password: Password).UnlockLocalStore(
-                    password: Password,
-                    passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
-                        (int?)PasswordTimeout : null);
+            var password = Utils.CheckPassword(Password);
+
+            LocalSecretStore.GetInstance(password: password).UnlockLocalStore(
+                password: password,
+                passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
+                    (int?)PasswordTimeout : null);
         }
 
         #endregion
@@ -98,8 +99,8 @@ namespace Microsoft.PowerShell.SecretStore
                     break;
 
                 case ParameterSet:
-                    oldPassword = Password;
-                    newPassword = NewPassword;
+                    oldPassword = Utils.CheckPassword(Password);
+                    newPassword = Utils.CheckPassword(NewPassword);
                     break;
 
                 default:
@@ -264,14 +265,14 @@ namespace Microsoft.PowerShell.SecretStore
         public Authenticate Authentication { get; set; }
 
         [Parameter]
+        public SecureString Password { get; set; }
+
+        [Parameter]
         [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         [Parameter]
         public Interaction Interaction { get; set; }
-
-        [Parameter]
-        public SecureString Password { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru { get; set; }
@@ -346,9 +347,10 @@ namespace Microsoft.PowerShell.SecretStore
 
             if (Password != null)
             {
+                var password = Utils.CheckPassword(Password);
                 LocalSecretStore.GetInstance(
-                    password: Password).UnlockLocalStore(
-                        password: Password,
+                    password: password).UnlockLocalStore(
+                        password: password,
                         passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
                             (int?)PasswordTimeout : null);
             }
