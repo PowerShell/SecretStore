@@ -67,7 +67,7 @@ Accept wildcard characters: False
 ```
 
 ### -Force
-When true, the user will not be asked to confirm and the SecretStore will be reset without prompting.
+When used, the user will not be asked to confirm and the SecretStore will be reset without prompting.
 Default value is false, and user will be asked to confirm the operation.
 
 ```yaml
