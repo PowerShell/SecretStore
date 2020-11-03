@@ -39,11 +39,12 @@ namespace Microsoft.PowerShell.SecretStore
 
         protected override void EndProcessing()
         {
-            LocalSecretStore.GetInstance(
-                password: Password).UnlockLocalStore(
-                    password: Password,
-                    passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
-                        (int?)PasswordTimeout : null);
+            var password = Utils.CheckPassword(Password);
+
+            LocalSecretStore.GetInstance(password: password).UnlockLocalStore(
+                password: password,
+                passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
+                    (int?)PasswordTimeout : null);
         }
 
         #endregion
@@ -56,23 +57,55 @@ namespace Microsoft.PowerShell.SecretStore
     /// <summary>
     /// Updates the local store password to the new password provided.
     /// </summary>
-    [Cmdlet(VerbsCommon.Set, "SecretStorePassword")]
+    [Cmdlet(VerbsCommon.Set, "SecretStorePassword", DefaultParameterSetName = NoParameterSet)]
     public sealed class SetSecretStorePasswordCommand : PSCmdlet
     {
+        #region Members
+
+        private const string NoParameterSet = "NoParameterSet";
+        private const string ParameterSet = "ParameterSet";
+
+        #endregion
+
+        #region Parameters
+
+        [Parameter(Position=0, Mandatory=true, ParameterSetName=ParameterSet, ValueFromPipeline=true)]
+        [ValidateNotNull]
+        public SecureString NewPassword { get; set; }
+
+        [Parameter(Position=1, ParameterSetName=ParameterSet)]
+        public SecureString Password { get; set; }
+
+        #endregion
+
         #region Overrides
 
         protected override void EndProcessing()
         {
             SecureString newPassword;
             SecureString oldPassword;
-            oldPassword = Utils.PromptForPassword(
-                cmdlet: this,
-                verifyPassword: false,
-                message: "Old password");
-            newPassword = Utils.PromptForPassword(
-                cmdlet: this,
-                verifyPassword: true,
-                message: "New password");
+
+            switch (ParameterSetName)
+            {
+                case NoParameterSet:
+                    oldPassword = Utils.PromptForPassword(
+                        cmdlet: this,
+                        verifyPassword: false,
+                        message: "Old password");
+                    newPassword = Utils.PromptForPassword(
+                        cmdlet: this,
+                        verifyPassword: true,
+                        message: "New password");
+                    break;
+
+                case ParameterSet:
+                    oldPassword = Utils.CheckPassword(Password);
+                    newPassword = Utils.CheckPassword(NewPassword);
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Unknown parameter set");
+            }
 
             LocalSecretStore.GetInstance(password: oldPassword).UpdatePassword(
                 newPassword,
@@ -134,6 +167,9 @@ namespace Microsoft.PowerShell.SecretStore
 
         [Parameter(ParameterSetName = DefaultParameterSet)]
         public SwitchParameter Default { get; set; }
+
+        [Parameter]
+        public SwitchParameter PassThru { get; set; }
 
         [Parameter]
         public SwitchParameter Force { get; set; }
@@ -202,7 +238,10 @@ namespace Microsoft.PowerShell.SecretStore
                         this));
             }
 
-            WriteObject(newConfigData);
+            if (PassThru.IsPresent)
+            {
+                WriteObject(newConfigData);
+            }
         }
 
         #endregion
@@ -226,11 +265,17 @@ namespace Microsoft.PowerShell.SecretStore
         public Authenticate Authentication { get; set; }
 
         [Parameter]
+        public SecureString Password { get; set; }
+
+        [Parameter]
         [ValidateRange(-1, (Int32.MaxValue / 1000))]
         public int PasswordTimeout { get; set; }
 
         [Parameter]
         public Interaction Interaction { get; set; }
+
+        [Parameter]
+        public SwitchParameter PassThru { get; set; }
 
         [Parameter]
         public SwitchParameter Force { get; set; }
@@ -269,11 +314,12 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             var defaultConfigData = SecureStoreConfig.GetDefault();
+            var interaction = MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : defaultConfigData.Interaction;
             var newConfigData = new SecureStoreConfig(
                 scope: MyInvocation.BoundParameters.ContainsKey(nameof(Scope)) ? Scope : defaultConfigData.Scope,
                 authentication: MyInvocation.BoundParameters.ContainsKey(nameof(Authentication)) ? Authentication : defaultConfigData.Authentication,
                 passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? PasswordTimeout : defaultConfigData.PasswordTimeout,
-                interaction: MyInvocation.BoundParameters.ContainsKey(nameof(Interaction)) ? Interaction : defaultConfigData.Interaction);
+                interaction: interaction);
 
             if (!SecureStoreFile.RemoveStoreFile(out string errorMsg))
             {
@@ -299,7 +345,25 @@ namespace Microsoft.PowerShell.SecretStore
 
             LocalSecretStore.Reset();
 
-            WriteObject(newConfigData);
+            if (Password != null)
+            {
+                var password = Utils.CheckPassword(Password);
+                LocalSecretStore.GetInstance(
+                    password: password).UnlockLocalStore(
+                        password: password,
+                        passwordTimeout: MyInvocation.BoundParameters.ContainsKey(nameof(PasswordTimeout)) ? 
+                            (int?)PasswordTimeout : null);
+            }
+            else if (interaction == Microsoft.PowerShell.SecretStore.Interaction.Prompt)
+            {
+                // Invoke the password prompt.
+                LocalSecretStore.GetInstance(cmdlet: this);
+            }
+
+            if (PassThru.IsPresent)
+            {
+                WriteObject(newConfigData);
+            }
         }
 
         #endregion

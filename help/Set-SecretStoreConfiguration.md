@@ -81,8 +81,23 @@ Accept wildcard characters: False
 ```
 
 ### -Force
-When true, the user will not be asked to confirm and the SecretStore will be reset without prompting.
+When used, the user will not be asked to confirm and the SecretStore will be reset without prompting.
 Default value is false, and user will be asked to confirm the operation.
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -PassThru
+When used, will write the current SecretStore configuration to the pipeline.
 
 ```yaml
 Type: SwitchParameter
