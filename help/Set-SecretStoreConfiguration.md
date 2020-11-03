@@ -97,7 +97,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
-When true, will write the current SecretStore configuration to the pipeline.
+When used, will write the current SecretStore configuration to the pipeline.
 
 ```yaml
 Type: SwitchParameter
