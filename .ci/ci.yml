@@ -161,6 +161,13 @@ stages:
 
   - template: test.yml
     parameters:
+      jobName: TestPkgWinPS
+      displayName: Windows PowerShell on Windows
+      imageName: windows-2019
+      powershellExecutable: powershell
+
+  - template: test.yml
+    parameters:
       jobName: TestPkgUbuntu16
       displayName: PowerShell Core on Ubuntu 16.04
       imageName: ubuntu-16.04
