@@ -39,8 +39,6 @@ function DoBuild
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
             dotnet publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
 
-            # Debug: Check 
-
             # Place build results
             if (! (Test-Path -Path "$BuildSrcPath/${ModuleName}.dll"))
             {
@@ -48,13 +46,16 @@ function DoBuild
             }
 
             Write-Verbose -Verbose -Message "Copying $BuildSrcPath/${ModuleName}.dll to $BuildOutPath"
-            Copy-Item "$BuildSrcPath/${ModuleName}.dll" -Dest "$BuildOutPath"
+            Copy-Item -Path "$BuildSrcPath/${ModuleName}.dll" -Dest "$BuildOutPath"
             
             if (Test-Path -Path "$BuildSrcPath/${ModuleName}.pdb")
             {
                 Write-Verbose -Verbose -Message "Copying $BuildSrcPath/${ModuleName}.pdb to $BuildOutPath"
                 Copy-Item -Path "$BuildSrcPath/${ModuleName}.pdb" -Dest "$BuildOutPath"
             }
+
+            Write-Verbose -Verbose "$BuildSrcPath/System.IO.FileSystem.AccessControl.dll to $BuildOutPath"
+            Copy-Item -Path "$BuildSrcPath/System.IO.FileSystem.AccessControl.dll" -Dest "$BuildOutPath"
         }
         catch {
             # Write-Error "dotnet build failed with error: $_"

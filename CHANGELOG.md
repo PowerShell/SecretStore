@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.5.4-preview4 - 2020-11-16
+
+### Fixes
+
+- Windows PowerShell incompatibility when creating new store files (Issue #28).
+
+### Changes
+
+- SecretStore binary is now built against net461 to provide full compatibility when run in PowerShell 6+ or WindowsPowerShell.
+
+- `System.IO.FileSystem.AccessControl.dll` is now shipped with module to maintain compatibility with WindowsPowerShell.
+
+### New Features
+
 ## 0.5.3-Preview3 - 2020-11-4
 
 ### Fixes
@@ -16,7 +30,7 @@
 
 - `Reset-SecretStore` now has a new `-Password` and `-PassThru` parameter.
 
-- `Reset-SecretStore` will now prompt immediately for a new password, if password authentication is selected and prompt interaction is allowed (Issue #34)
+- `Reset-SecretStore` will now prompt immediately for a new password, if password authentication is selected and prompt interaction is allowed (Issue #34).
 
 ### New Features
 

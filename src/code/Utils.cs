@@ -2553,10 +2553,8 @@ namespace Microsoft.PowerShell.SecretStore
             // Windows platform.
 
             // For Windows, file permissions are set to FullAccess for current user account only.
-            var dirInfo = new DirectoryInfo(directoryPath);
-            var dirSecurity = new DirectorySecurity();
-
             // SetAccessRule method applies to this directory.
+            var dirSecurity = new DirectorySecurity();
             dirSecurity.SetAccessRule(
                 new FileSystemAccessRule(
                     identity: WindowsIdentity.GetCurrent().User,
@@ -2582,8 +2580,10 @@ namespace Microsoft.PowerShell.SecretStore
             // Set directory owner.
             dirSecurity.SetOwner(WindowsIdentity.GetCurrent().User);
 
-            // Apply rules.
-            dirInfo.SetAccessControl(dirSecurity);
+            // Apply new rules.
+            System.IO.FileSystemAclExtensions.SetAccessControl(
+                directoryInfo: new DirectoryInfo(directoryPath),
+                directorySecurity: dirSecurity);
         }
 
         private static void SetFilePermissions(

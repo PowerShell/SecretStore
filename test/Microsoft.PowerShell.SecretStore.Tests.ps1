@@ -5,6 +5,13 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
     BeforeAll {
 
+        if (($IsWindows -eq $true) -or ($PSVersionTable.PSVersion.Major -eq 5)) {
+            $IsWindowsPlatform = $true
+        }
+        else {
+            $IsWindowsPlatform = $false;
+        }
+
         if ((Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore) -eq $null)
         {
             Import-Module -Name Microsoft.PowerShell.SecretManagement
@@ -41,7 +48,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     Context "SecretStore file permission tests" {
 
         BeforeAll {
-            if ($IsWindows)
+            if ($IsWindowsPlatform)
             {
                 $storePath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
                 $storePath = Join-Path -Path $storePath -ChildPath 'Microsoft\PowerShell\secretmanagement\localstore'
@@ -58,7 +65,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             }
         }
 
-        if ($IsWindows)
+        if ($IsWindowsPlatform)
         {
             It "Verifies SecretStore directory ACLs" {
                 $acl = Get-Acl $storePath
