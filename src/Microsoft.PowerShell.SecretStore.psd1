@@ -11,7 +11,7 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '1.0.0'
+ModuleVersion = '0.9.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')

@@ -1,12 +1,12 @@
 # CHANGELOG
 
-## 1.0.0 - 2021-1-15
+## 0.9.0 - 2021-1-15
 
 ### Fixes
 
 ### Changes
 
-- Take SecretStore module to version 1.0.0 release candidate.
+- Take SecretStore module to version 0.9.0 release candidate.
 
 ### New Features
 
