@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.9.0 - 2021-1-15
+
+### Fixes
+
+### Changes
+
+- Take SecretStore module to version 0.9.0 release candidate.
+
+### New Features
+
 ## 0.5.4-preview4 - 2020-11-16
 
 ### Fixes

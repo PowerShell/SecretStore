@@ -11,7 +11,7 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '0.5.4'
+ModuleVersion = '0.9.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -66,9 +66,6 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
-
-        # Prerelease string of this module
-        Prerelease = 'preview4'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false
