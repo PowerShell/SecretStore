@@ -111,7 +111,8 @@ function Set-Secret
         [string] $Name,
         [object] $Secret,
         [string] $VaultName,
-        [hashtable] $AdditionalParameters
+        [hashtable] $AdditionalParameters,
+        [hashtable] $Metadata
     )
 
     $errorMsg = ""
@@ -123,6 +124,7 @@ function Set-Secret
             if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $Name,
                 $Secret,
+                $Metadata,
                 [ref] $errorMsg))
             {
                 return
@@ -150,6 +152,55 @@ function Set-Secret
         Write-Error -ErrorRecord $errorRecord
     }
 }
+
+<#
+function Set-SecretMetadata
+{
+    param (
+        [string] $Name,
+        [hashtable] $Metadata,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            # TODO: Implement!!
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                $Name,
+                $Metadata,
+                [ref] $errorMsg))
+            {
+                return
+            }
+        }
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.ItemNotFoundException]::new("Set-SecretMetadata error in vault $VaultName : $errorMsg"),
+            "SecretStoreSetSecretMetadataFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+#>
 
 function Remove-Secret
 {
