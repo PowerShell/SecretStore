@@ -127,8 +127,12 @@ function Set-Secret
                 $Metadata,
                 [ref] $errorMsg))
             {
+                # Success
                 return
             }
+
+            # Failure
+            break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
@@ -153,9 +157,11 @@ function Set-Secret
     }
 }
 
-<#
-function Set-SecretMetadata
+function Set-SecretInfo
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
+    [CmdletBinding()]
     param (
         [string] $Name,
         [hashtable] $Metadata,
@@ -169,14 +175,17 @@ function Set-SecretMetadata
     {
         try
         {
-            # TODO: Implement!!
             if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
                 $Name,
                 $Metadata,
                 [ref] $errorMsg))
             {
+                # Success
                 return
             }
+
+            # Failure
+            break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
@@ -193,14 +202,13 @@ function Set-SecretMetadata
     if (! [string]::IsNullOrEmpty($errorMsg))
     {
         $errorRecord = [System.Management.Automation.ErrorRecord]::new(
-            [System.Management.Automation.ItemNotFoundException]::new("Set-SecretMetadata error in vault $VaultName : $errorMsg"),
-            "SecretStoreSetSecretMetadataFailed",
+            [System.Management.Automation.ItemNotFoundException]::new("Set-SecretInfo error in vault $VaultName : $errorMsg"),
+            "SecretStoreSetSecretInfoFailed",
             [System.Management.Automation.ErrorCategory]::InvalidOperation,
             $null)
         Write-Error -ErrorRecord $errorRecord
     }
 }
-#>
 
 function Remove-Secret
 {
@@ -223,8 +231,12 @@ function Remove-Secret
                 $Name,
                 [ref] $errorMsg))
             {
+                # Success
                 return
             }
+
+            # Failure
+            break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {

@@ -2955,14 +2955,45 @@ namespace Microsoft.PowerShell.SecretStore
         
         #region Public methods
 
+        public bool WriteMetadata(
+            string name,
+            Hashtable metadata,
+            out string errorMsg)
+        {
+            if (!ReadObject(
+                name: name,
+                out object outObject,
+                out string readErrorMsg))
+            {
+                errorMsg = string.Format(CultureInfo.InvariantCulture,
+                    "Microsoft.PowerShell.SecretStore vault cannot write metadata to {0} because the secret does not exist.",
+                    name);
+                return false;
+            }
+
+            if (!WriteObject(
+                name: name,
+                objectToWrite: outObject,
+                metadata: metadata,
+                out string writeErrorMsg))
+            {
+                errorMsg = string.Format(CultureInfo.InvariantCulture,
+                    "Microsoft.PowerShell.SecretStore vault cannot write metadata to {0} with error message: {1}",
+                    name,
+                    readErrorMsg);
+                return false;
+            }
+
+            errorMsg = string.Empty;
+            return true;
+        }
+
         public bool WriteObject<T>(
             string name,
             T objectToWrite,
             Hashtable metadata,
             out string errorMsg)
         {
-            // TODO: Add check for allowed metadata value types.
-
             var password = _secureStore.Password;
             try
             {
@@ -3338,7 +3369,8 @@ namespace Microsoft.PowerShell.SecretStore
                     var item = metadata[key];
                     if (!(item is string) && !(item is int) && !(item is DateTime))
                     {
-                        throw new PSInvalidOperationException("Microsoft.PowerShell.SecretStore accepts secret metadata only of types: string, int, DateTime");
+                        errorMsg = "Microsoft.PowerShell.SecretStore accepts secret metadata only of types: string, int, DateTime";
+                        return false;
                     }
 
                     additionalData.Add(key, item);
