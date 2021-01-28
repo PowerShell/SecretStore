@@ -2991,6 +2991,18 @@ namespace Microsoft.PowerShell.SecretStore
         public bool WriteObject<T>(
             string name,
             T objectToWrite,
+            out string errorMsg)
+        {
+            return WriteObject(
+                name: name,
+                objectToWrite: objectToWrite,
+                metadata: null,
+                out errorMsg);
+        }
+
+        public bool WriteObject<T>(
+            string name,
+            T objectToWrite,
             Hashtable metadata,
             out string errorMsg)
         {

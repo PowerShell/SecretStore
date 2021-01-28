@@ -164,6 +164,54 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
+    Context "SecretStore metadata function" {
+
+        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+        $secretContent = "TestStoreString"
+
+        It "Verifies writing metadata along with secret content" {
+            $errorMsg = ""
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
+                $secretName,
+                $secretContent,
+                (@{ TargetName = 'SomeName' }),
+                [ref] $errorMsg)
+
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            #
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Metadata.TargetName | Should -BeExactly 'SomeName'
+        }
+
+        It "Verifies modifying metadata for existing secret" {
+            $errorMsg = ""
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                $secretName,
+                (@{ TargetName = 'SomeOtherName' }),
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            #
+            $outInfo = $null
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
+                $secretName,
+                [ref] $outInfo,
+                "MyVault",
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+            $errorMsg | Should -Be ""
+            $outInfo.Metadata.TargetName | Should -BeExactly 'SomeOtherName'
+        }
+    }
+
     Context "SecretStore Vault Byte[] type" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
