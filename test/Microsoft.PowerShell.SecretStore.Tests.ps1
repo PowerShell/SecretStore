@@ -210,6 +210,24 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $errorMsg | Should -Be ""
             $outInfo.Metadata.TargetName | Should -BeExactly 'SomeOtherName'
         }
+
+        It "Verifies expected unsupported type error" {
+            $errorMsg = ""
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                $secretName,
+                (@{ InvalidType = (Get-Process -id $pid) }),
+                [ref] $errorMsg)
+            $success | Should -Not -BeTrue
+        }
+
+        It "Verifies expected no secret found error" {
+            $errorMsg = ""
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                'NoSuchName',
+                (@{ Name = 'None' }),
+                [ref] $errorMsg)
+            $success | Should -Not -BeTrue
+        }
     }
 
     Context "SecretStore Vault Byte[] type" {
