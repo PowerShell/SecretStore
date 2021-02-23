@@ -6,6 +6,11 @@ Secrets remain encrypted in-memory, and are only decrypted when retrieved and pa
 This module works over all supported PowerShell platforms on Windows, Linux, and macOS.
 In the default configuration, a password is required to store and access secrets, and provides the strongest protection.  
 
+## Secret metadata
+
+Supporting secret metadata is optional for SecretManagement extension vaults.
+The SecretStore supports secret metadata through the optional `Set-Secret` vault command `Metadata` parameter, and the optional `Set-SecretInfo` vault command.  
+
 ## Configuration
 
 The SecretStore module allows a number of configurations.  

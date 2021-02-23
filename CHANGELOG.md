@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.9.1 - 2021-3-1
+
+### Fixes
+
+### Changes
+
+- `Set-Secret` vault command now supports optional `Metadata` parameter (Issue #46).
+
+- Add optional `Set-SecretInfo` vault command that sets `Metadata` to an existing vault secret (Issue #46).
+
+### New Features
+
+- Add support for SecretManagement secret metadata (Issue #46).
+
 ## 0.9.0 - 2021-1-15
 
 ### Fixes

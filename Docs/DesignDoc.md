@@ -106,7 +106,10 @@ The data file structure consists of three main sections:
 The file data hash is a cryptographic hash of the key, iv, metadata, data, and is used to verify file content integrity.  
 
 The metadata is a json structure that contains information about each secret.
-It includes secret name, type, optional attributes, and encrypted blob size and offset information.  
+It includes secret name, type, optional attributes, and encrypted blob size and offset information.
+It also includes optional additional data associated with the secret, to support SecretManagement optional metadata.
+The optional SecretManagement metadata allows users to associate arbitrary data to a stored secret as name/value pairs.
+The metadata is not stored securely and must not contain sensitive information.  
 
 ```json
 {
@@ -116,7 +119,8 @@ It includes secret name, type, optional attributes, and encrypted blob size and 
         "Type": "String",
         "Offset": 34593,
         "Size": 3500,
-        "Attributes": {}
+        "Attributes": {},
+        "AdditionalData": {}
     },
     {
         "Name": "TestSecret2",
@@ -126,6 +130,9 @@ It includes secret name, type, optional attributes, and encrypted blob size and 
         "Attributes": {
             "UserName": "UserA"
         },
+        "AdditionalData": {
+            "Desc": "MySecret"
+        }
     }
     ]
 }

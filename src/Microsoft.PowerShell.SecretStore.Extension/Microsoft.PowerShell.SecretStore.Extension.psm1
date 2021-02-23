@@ -291,6 +291,19 @@ function Test-SecretVault
         return $success
     }
 
+    # Setting secret metadata
+    $errorMsg = ""
+    $metadata = @{ Name='MyMetadata' }
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+        $secretName,
+        $metadata,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to write secret metadata on vault $VaultName with error: $errorMsg"
+        return $success
+    }
+
     # Getting secret info
     $errorMsg = ""
     $result = $null
