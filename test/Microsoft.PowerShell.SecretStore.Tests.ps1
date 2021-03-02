@@ -178,7 +178,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             #
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
@@ -187,7 +187,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 "MyVault",
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Metadata.TargetName | Should -BeExactly 'SomeName'
         }
 
@@ -198,7 +198,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 (@{ TargetName = 'SomeOtherName' }),
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             #
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
@@ -207,7 +207,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 "MyVault",
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Metadata.TargetName | Should -BeExactly 'SomeOtherName'
         }
 
@@ -243,7 +243,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
         }
 
         It "Verifes byte[] read from SecretStore" {
@@ -254,7 +254,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             [System.Text.Encoding]::UTF8.GetString($outBytes) | Should -BeExactly "TestBytesStringToTest"
         }
 
@@ -267,7 +267,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Name | Should -BeExactly $secretName
             $outInfo.Type | Should -BeExactly "ByteArray"
             $outInfo.VaultName | Should -BeExactly "MyVault"
@@ -278,7 +278,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $secretName,
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be "" 
+            $errorMsg | Should -BeNullOrEmpty
 
             $outBytes = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
@@ -302,7 +302,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
         }
 
         It "Verifies String read from SecretStore" {
@@ -313,7 +313,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outString | Should -BeExactly $stringToWrite
         }
 
@@ -326,7 +326,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Name | Should -BeExactly $secretName
             $outInfo.Type | Should -BeExactly "String"
             $outInfo.VaultName | Should -BeExactly "MyVault"
@@ -337,7 +337,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $secretName,
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be "" 
+            $errorMsg | Should -BeNullOrEmpty
 
             $outString = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
@@ -362,7 +362,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
         }
 
         It "Verifies SecureString read from SecretStore" {
@@ -373,7 +373,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outString | Should -BeExactly $stringToWrite
             [System.Net.NetworkCredential]::new('',$outSecureString).Password | Should -BeExactly $randomSecret
         }
@@ -387,7 +387,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Name | Should -BeExactly $secretName
             $outInfo.Type | Should -BeExactly "SecureString"
             $outInfo.VaultName | Should -BeExactly "MyVault"
@@ -398,7 +398,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $secretName,
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be "" 
+            $errorMsg | Should -BeNullOrEmpty
 
             $outSecureString = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
@@ -423,7 +423,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
         }
 
         It "Verifies PSCredential read from SecretStore" {
@@ -434,7 +434,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outString | Should -BeExactly $stringToWrite
             $outCred.UserName | Should -BeExactly "UserL"
             [System.Net.NetworkCredential]::new('', ($outCred.Password)).Password | Should -BeExactly $randomSecret
@@ -449,7 +449,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Name | Should -BeExactly $secretName
             $outInfo.Type | Should -BeExactly "PSCredential"
             $outInfo.VaultName | Should -BeExactly "MyVault"
@@ -460,7 +460,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $secretName,
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be "" 
+            $errorMsg | Should -BeNullOrEmpty
 
             $outCred = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
@@ -492,7 +492,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
 
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
         }
 
         It "Verifies Hashtable read from SecretStore" {
@@ -503,7 +503,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outHT.Blob.Count | Should -Be 2
             $outHT.Str | Should -BeExactly "TestHashtableString"
             [System.Net.NetworkCredential]::new('', ($outHT.SecureString)).Password | Should -BeExactly $randomSecretA
@@ -520,7 +520,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             
             $success | Should -BeTrue
-            $errorMsg | Should -Be ""
+            $errorMsg | Should -BeNullOrEmpty
             $outInfo.Name | Should -BeExactly $secretName
             $outInfo.Type | Should -BeExactly "Hashtable"
             $outInfo.VaultName | Should -BeExactly "MyVault"
@@ -531,7 +531,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 $secretName,
                 [ref] $errorMsg)
             $success | Should -BeTrue
-            $errorMsg | Should -Be "" 
+            $errorMsg | Should -BeNullOrEmpty
 
             $outHT = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().ReadObject(
