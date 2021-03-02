@@ -75,7 +75,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
             var results = PowerShellInvoker.InvokeScriptCommon<string>(
-                script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable",
+                script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable -Depth 5",
                 args: new object[] { hashtable },
                 error: out ErrorRecord _);
 
@@ -721,6 +721,27 @@ namespace Microsoft.PowerShell.SecretStore
             get;
         }
 
+        public ReadOnlyDictionary<string, object> AdditionalData
+        {
+            get;
+        }
+
+        public Hashtable AttributesAsHashtable
+        {
+            get 
+            {
+                return ConvertToHashtable(Attributes);
+            }
+        }
+
+        public Hashtable AdditionalDataAsHashtable
+        {
+            get
+            {
+                return ConvertToHashtable(AdditionalData);
+            }
+        }
+
         #endregion
 
         #region Constructor
@@ -734,13 +755,47 @@ namespace Microsoft.PowerShell.SecretStore
             string typeName,
             int offset,
             int size,
-            ReadOnlyDictionary<string, object> attributes)
+            ReadOnlyDictionary<string, object> attributes,
+            ReadOnlyDictionary<string, object> additionalData)
         {
             Name = name;
             TypeName = typeName;
             Offset = offset;
             Size = size;
             Attributes = attributes;
+            AdditionalData = additionalData;
+        }
+
+        public SecureStoreMetadata(
+            SecureStoreMetadata metadata)
+        {
+            Name = metadata.Name;
+            TypeName = metadata.TypeName;
+            Offset = metadata.Offset;
+            Size = metadata.Size;
+            Attributes = metadata.Attributes;
+            AdditionalData = metadata.AdditionalData;
+        }
+
+        #endregion
+    
+        #region Private methods
+
+        private Hashtable ConvertToHashtable(
+            ReadOnlyDictionary<string, object> dictionary)
+        {
+            var returnHashtable = new Hashtable();
+            if (dictionary != null)
+            {
+                foreach (var key in dictionary.Keys)
+                {
+                    returnHashtable.Add(
+                        key: key,
+                        value: dictionary[key]);
+                }
+            }
+
+            return returnHashtable;
         }
 
         #endregion
@@ -830,10 +885,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
             MetaData =
             @(
-                @{Name='TestSecret1'; Type='SecureString'; Offset=14434; Size=5000; Attributes=@{}}
-                @{Name='TestSecret2'; Type='String'; Offset=34593; Size=5100; Attributes=@{}}
-                @{Name='TestSecret3'; Type='PSCredential'; Offset=59837; Size=4900; Attributes=@{UserName='UserA'}}
-                @{Name='TestSecret4'; Type='Hashtable'; Offset=77856; Size=3500; Attributes=@{Element1='SecretElement1'; Element2='SecretElement2'}}
+                @{Name='TestSecret1'; Type='SecureString'; Offset=14434; Size=5000; Attributes=@{}; AdditionalData=@{}}
+                @{Name='TestSecret2'; Type='String'; Offset=34593; Size=5100; Attributes=@{}; AdditionalData=@{}}
+                @{Name='TestSecret3'; Type='PSCredential'; Offset=59837; Size=4900; Attributes=@{UserName='UserA'}; AdditionalData=@{Desc='MySecret'}}
+                @{Name='TestSecret4'; Type='Hashtable'; Offset=77856; Size=3500; Attributes=@{Element1='SecretElement1'; Element2='SecretElement2'}; AdditionalData=@{}}
             )
         }
         */
@@ -859,7 +914,10 @@ namespace Microsoft.PowerShell.SecretStore
                     value: item.Size);
                 metaHashtable.Add(
                     key: "Attributes",
-                    value: item.Attributes);
+                    value: item.AttributesAsHashtable);
+                metaHashtable.Add(
+                    key: "AdditionalData",
+                    value: item.AdditionalDataAsHashtable);
                 
                 listMetadata.Add(metaHashtable);
             }
@@ -908,7 +966,8 @@ namespace Microsoft.PowerShell.SecretStore
                 "Type": "String",
                 "Offset": 34593,
                 "Size": 3500,
-                "Attributes": {}
+                "Attributes": {},
+                "AdditionalData": {}
             },
             {
                 "Name": "TestSecret2",
@@ -918,6 +977,9 @@ namespace Microsoft.PowerShell.SecretStore
                 "Attributes": {
                     "UserName": "UserA"
                 },
+                "AdditionalData": {
+                    "Desc": "MySecret"
+                }
             }
             ]
         }
@@ -949,6 +1011,19 @@ namespace Microsoft.PowerShell.SecretStore
                         value: prop.Value);
                 }
 
+                // Optional additional data.
+                var additionalDataDictionary = new Dictionary<string, object>();
+                var additionalData = item.AdditionalData;
+                if (additionalData != null)
+                {
+                    foreach (var prop in ((PSObject)additionalData).Properties)
+                    {
+                        additionalDataDictionary.Add(
+                            key: prop.Name,
+                            value: prop.Value);
+                    }
+                }
+
                 MetaData.Add(
                     key: item.Name,
                     value: new SecureStoreMetadata(
@@ -956,7 +1031,8 @@ namespace Microsoft.PowerShell.SecretStore
                         typeName: item.Type,
                         offset: (int) item.Offset,
                         size: (int) item.Size,
-                        attributes: new ReadOnlyDictionary<string, object>(attributesDictionary)));
+                        attributes: new ReadOnlyDictionary<string, object>(attributesDictionary),
+                        additionalData: new ReadOnlyDictionary<string, object>(additionalDataDictionary)));
             }
         }
 
@@ -1174,6 +1250,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            Dictionary<string, object> additionalData,
             SecureString password,
             out string errorMsg)
         {
@@ -1187,6 +1264,7 @@ namespace Microsoft.PowerShell.SecretStore
                     blob,
                     typeName,
                     attributes,
+                    additionalData,
                     password,
                     out errorMsg);
             }
@@ -1196,6 +1274,7 @@ namespace Microsoft.PowerShell.SecretStore
                 blob,
                 typeName,
                 attributes,
+                additionalData,
                 password,
                 out errorMsg);
         }
@@ -1257,12 +1336,7 @@ namespace Microsoft.PowerShell.SecretStore
                     {
                         var data = _data.MetaData[key];
                         foundBlobs.Add(
-                            new SecureStoreMetadata(
-                                name: data.Name,
-                                typeName: data.TypeName,
-                                offset: data.Offset,
-                                size: data.Size,
-                                attributes: data.Attributes));
+                            new SecureStoreMetadata(data));
                     }
                 }
             }
@@ -1530,12 +1604,7 @@ namespace Microsoft.PowerShell.SecretStore
 
                 outMetaData.Add(
                     key: metaItem.Name,
-                    value: new SecureStoreMetadata(
-                        name: metaItem.Name,
-                        typeName: metaItem.TypeName,
-                        offset: offset,
-                        size: newBlobItem.Length,
-                        attributes: metaItem.Attributes));
+                    value: new SecureStoreMetadata(metaItem));
                     
                 newBlobArray.AddRange(newBlobItem);
 
@@ -1550,6 +1619,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            Dictionary<string, object> additionalData,
             SecureString password,
             out string errorMsg)
         {
@@ -1581,7 +1651,8 @@ namespace Microsoft.PowerShell.SecretStore
                         typeName: typeName,
                         offset: offset,
                         size: blobToWrite.Length,
-                        attributes: new ReadOnlyDictionary<string, object>(attributes)));
+                        attributes: new ReadOnlyDictionary<string, object>(attributes),
+                        additionalData: new ReadOnlyDictionary<string, object>(additionalData)));
 
                 // Update store data
                 _data = newData;
@@ -1600,6 +1671,7 @@ namespace Microsoft.PowerShell.SecretStore
             byte[] blob,
             string typeName,
             Dictionary<string, object> attributes,
+            Dictionary<string, object> additionalData,
             SecureString password,
             out string errorMsg)
         {
@@ -1621,6 +1693,7 @@ namespace Microsoft.PowerShell.SecretStore
                     blob: blob,
                     typeName: typeName,
                     attributes: attributes,
+                    additionalData: additionalData,
                     password: password,
                     out errorMsg);
             }
@@ -2750,6 +2823,7 @@ namespace Microsoft.PowerShell.SecretStore
         private static object SyncObject;
         private static LocalSecretStore LocalStore;
         private static Dictionary<string, object> DefaultTag;
+        private static Dictionary<string, object> EmptyMetadata;
 
         #endregion
 
@@ -2795,6 +2869,8 @@ namespace Microsoft.PowerShell.SecretStore
                 {
                     { "Tag", "PSItem" }
                 };
+
+            EmptyMetadata = new Dictionary<string, object>();
         }
 
         #endregion
@@ -2879,9 +2955,55 @@ namespace Microsoft.PowerShell.SecretStore
         
         #region Public methods
 
+        public bool WriteMetadata(
+            string name,
+            Hashtable metadata,
+            out string errorMsg)
+        {
+            if (!ReadObject(
+                name: name,
+                out object outObject,
+                out string readErrorMsg))
+            {
+                errorMsg = string.Format(CultureInfo.InvariantCulture,
+                    "Microsoft.PowerShell.SecretStore vault cannot write metadata to {0} because the secret does not exist.",
+                    name);
+                return false;
+            }
+
+            if (!WriteObject(
+                name: name,
+                objectToWrite: outObject,
+                metadata: metadata,
+                out string writeErrorMsg))
+            {
+                errorMsg = string.Format(CultureInfo.InvariantCulture,
+                    "Microsoft.PowerShell.SecretStore vault cannot write metadata to {0} with error message: {1}",
+                    name,
+                    readErrorMsg);
+                return false;
+            }
+
+            errorMsg = string.Empty;
+            return true;
+        }
+
         public bool WriteObject<T>(
             string name,
             T objectToWrite,
+            out string errorMsg)
+        {
+            return WriteObject(
+                name: name,
+                objectToWrite: objectToWrite,
+                metadata: null,
+                out errorMsg);
+        }
+
+        public bool WriteObject<T>(
+            string name,
+            T objectToWrite,
+            Hashtable metadata,
             out string errorMsg)
         {
             var password = _secureStore.Password;
@@ -2890,6 +3012,7 @@ namespace Microsoft.PowerShell.SecretStore
                 return WriteObjectImpl(
                     name,
                     objectToWrite,
+                    metadata,
                     password,
                     out errorMsg);
             }
@@ -2982,6 +3105,7 @@ namespace Microsoft.PowerShell.SecretStore
                             new SecretInformation(
                                 name: item.Name,
                                 type: SecretType.ByteArray,
+                                metadata: item.Metadata,
                                 vaultName: vaultName));
                         break;
 
@@ -2990,6 +3114,7 @@ namespace Microsoft.PowerShell.SecretStore
                             new SecretInformation(
                                 name: item.Name,
                                 type: SecretType.String,
+                                metadata: item.Metadata,
                                 vaultName: vaultName));
                         break;
 
@@ -2998,6 +3123,7 @@ namespace Microsoft.PowerShell.SecretStore
                             new SecretInformation(
                                 name: item.Name,
                                 type: SecretType.SecureString,
+                                metadata: item.Metadata,
                                 vaultName: vaultName));
                         break;
 
@@ -3006,6 +3132,7 @@ namespace Microsoft.PowerShell.SecretStore
                             new SecretInformation(
                                 name: item.Name,
                                 type: SecretType.PSCredential,
+                                metadata: item.Metadata,
                                 vaultName: vaultName));
                         break;
 
@@ -3014,6 +3141,7 @@ namespace Microsoft.PowerShell.SecretStore
                             new SecretInformation(
                                 name: item.Name,
                                 type: SecretType.Hashtable,
+                                metadata: item.Metadata,
                                 vaultName: vaultName));
                         break;
                 }
@@ -3181,6 +3309,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteObjectImpl<T>(
             string name,
             T objectToWrite,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3191,6 +3320,7 @@ namespace Microsoft.PowerShell.SecretStore
                         name,
                         blobToWrite,
                         ByteArrayType,
+                        metadata,
                         password,
                         out errorMsg);
 
@@ -3198,6 +3328,7 @@ namespace Microsoft.PowerShell.SecretStore
                     return WriteString(
                         name,
                         stringToWrite,
+                        metadata,
                         password,
                         out errorMsg);
 
@@ -3205,6 +3336,7 @@ namespace Microsoft.PowerShell.SecretStore
                     return WriteSecureString(
                         name,
                         secureStringToWrite,
+                        metadata,
                         password,
                         out errorMsg);
 
@@ -3212,6 +3344,7 @@ namespace Microsoft.PowerShell.SecretStore
                     return WritePSCredential(
                         name,
                         credentialToWrite,
+                        metadata,
                         password,
                         out errorMsg);
 
@@ -3219,6 +3352,7 @@ namespace Microsoft.PowerShell.SecretStore
                     return WriteHashtable(
                         name,
                         hashtableToWrite,
+                        metadata,
                         password,
                         out errorMsg);
                 
@@ -3231,14 +3365,36 @@ namespace Microsoft.PowerShell.SecretStore
             string name,
             byte[] blob,
             string typeName,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
+            // Supported additional data types are:
+            //   string
+            //   int
+            //   DateTime
+            var additionalData = new Dictionary<string, object>();
+            if (metadata != null)
+            {
+                foreach (string key in metadata.Keys)
+                {
+                    var item = metadata[key];
+                    if (!(item is string) && !(item is int) && !(item is DateTime))
+                    {
+                        errorMsg = "Microsoft.PowerShell.SecretStore accepts secret metadata only of types: string, int, DateTime";
+                        return false;
+                    }
+
+                    additionalData.Add(key, item);
+                }
+            }
+
             return _secureStore.WriteBlob(
                 name: name,
                 blob: blob,
                 typeName: typeName,
                 attributes: DefaultTag,
+                additionalData: additionalData,
                 password: password,
                 errorMsg: out errorMsg);
         }
@@ -3269,6 +3425,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             public string Name;
             public string TypeName;
+            public ReadOnlyDictionary<string, object> Metadata;
         }
 
         private bool EnumerateBlobs(
@@ -3294,7 +3451,8 @@ namespace Microsoft.PowerShell.SecretStore
                         new EnumeratedBlob
                         {
                             Name = metaItem.Name,
-                            TypeName = metaItem.TypeName
+                            TypeName = metaItem.TypeName,
+                            Metadata = metaItem.AdditionalData
                         });
                 }
             }
@@ -3321,6 +3479,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteString(
             string name,
             string strToWrite,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3328,6 +3487,7 @@ namespace Microsoft.PowerShell.SecretStore
                 name: name,
                 blob: Encoding.UTF8.GetBytes(strToWrite),
                 typeName: StringType,
+                metadata: metadata,
                 password: password,
                 errorMsg: out errorMsg);
         }
@@ -3357,6 +3517,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteStringArray(
             string name,
             string[] strsToWrite,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3408,6 +3569,7 @@ namespace Microsoft.PowerShell.SecretStore
                 name: name,
                 blob: blob,
                 typeName: HashtableType,
+                metadata: metadata,
                 password: password,
                 errorMsg: out errorMsg);
         }
@@ -3440,6 +3602,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteSecureString(
             string name,
             SecureString strToWrite,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3453,6 +3616,7 @@ namespace Microsoft.PowerShell.SecretStore
                         name: name,
                         blob: data,
                         typeName: SecureStringType,
+                        metadata: metadata,
                         password: password,
                         errorMsg: out errorMsg);
                 }
@@ -3503,6 +3667,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WritePSCredential(
             string name,
             PSCredential credential,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3543,6 +3708,7 @@ namespace Microsoft.PowerShell.SecretStore
                         name: name,
                         blob: blob,
                         typeName: PSCredentialType,
+                        metadata: metadata,
                         password: password,
                         errorMsg: out errorMsg);
                 }
@@ -3617,6 +3783,7 @@ namespace Microsoft.PowerShell.SecretStore
         private bool WriteHashtable(
             string name,
             Hashtable hashtable,
+            Hashtable metadata,
             SecureString password,
             out string errorMsg)
         {
@@ -3665,6 +3832,7 @@ namespace Microsoft.PowerShell.SecretStore
             if (!WriteStringArray(
                 name: name,
                 strsToWrite: hashTableEntryNames.ToArray(),
+                metadata,
                 password: password,
                 errorMsg: out errorMsg))
             {
@@ -3680,6 +3848,7 @@ namespace Microsoft.PowerShell.SecretStore
                     success = WriteObjectImpl(
                         name: entry.Key,
                         objectToWrite: entry.Value,
+                        metadata: metadata,
                         password: password,
                         errorMsg: out errorMsg);
                     

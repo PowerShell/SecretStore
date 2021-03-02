@@ -111,7 +111,8 @@ function Set-Secret
         [string] $Name,
         [object] $Secret,
         [string] $VaultName,
-        [hashtable] $AdditionalParameters
+        [hashtable] $AdditionalParameters,
+        [hashtable] $Metadata
     )
 
     $errorMsg = ""
@@ -123,10 +124,15 @@ function Set-Secret
             if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $Name,
                 $Secret,
+                $Metadata,
                 [ref] $errorMsg))
             {
+                # Success
                 return
             }
+
+            # Failure
+            break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
@@ -145,6 +151,59 @@ function Set-Secret
         $errorRecord = [System.Management.Automation.ErrorRecord]::new(
             [System.Management.Automation.ItemNotFoundException]::new("Set-Secret error in vault $VaultName : $errorMsg"),
             "SecretStoreSetSecretFailed",
+            [System.Management.Automation.ErrorCategory]::InvalidOperation,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
+function Set-SecretInfo
+{
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
+    [CmdletBinding()]
+    param (
+        [string] $Name,
+        [hashtable] $Metadata,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""
+    $count = 0
+    do
+    {
+        try
+        {
+            if ([Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                $Name,
+                $Metadata,
+                [ref] $errorMsg))
+            {
+                # Success
+                return
+            }
+
+            # Failure
+            break
+        }
+        catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
+        {
+            if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::AllowPrompting -or
+                ($count -gt 0))
+            {
+                throw
+            }
+
+            [Microsoft.PowerShell.SecretStore.LocalSecretStore]::PromptAndUnlockVault($VaultName, $PSCmdlet)
+        }
+    } while ($count++ -lt 1)
+
+    if (! [string]::IsNullOrEmpty($errorMsg))
+    {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Management.Automation.ItemNotFoundException]::new("Set-SecretInfo error in vault $VaultName : $errorMsg"),
+            "SecretStoreSetSecretInfoFailed",
             [System.Management.Automation.ErrorCategory]::InvalidOperation,
             $null)
         Write-Error -ErrorRecord $errorRecord
@@ -172,8 +231,12 @@ function Remove-Secret
                 $Name,
                 [ref] $errorMsg))
             {
+                # Success
                 return
             }
+
+            # Failure
+            break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
         {
@@ -225,6 +288,19 @@ function Test-SecretVault
     if (! $success)
     {
         Write-Error -Message "Test-SecretVault failed to write secret on vault $VaultName with error: $errorMsg"
+        return $success
+    }
+
+    # Setting secret metadata
+    $errorMsg = ""
+    $metadata = @{ Name='MyMetadata' }
+    $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+        $secretName,
+        $metadata,
+        [ref] $errorMsg)
+    if (! $success)
+    {
+        Write-Error -Message "Test-SecretVault failed to write secret metadata on vault $VaultName with error: $errorMsg"
         return $success
     }
 
