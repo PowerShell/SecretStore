@@ -1,4 +1,4 @@
-# Microsoft.PowerShell.SecretStore Module Design
+# Microsoft.PowerShell.SecretStore Module Architecture
 
 ## Description
 
