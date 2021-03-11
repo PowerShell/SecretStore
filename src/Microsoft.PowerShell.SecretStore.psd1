@@ -11,7 +11,7 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '0.9.1'
+ModuleVersion = '0.9.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -56,7 +56,7 @@ PrivateData = @{
         Tags = @('SecretManagement')
 
         # A URL to the license for this module.
-        LicenseUri = 'https://github.com/PowerShell/Modules/License.txt'
+        LicenseUri = 'https://github.com/PowerShell/SecretStore/blob/master/LICENSE'
 
         # A URL to the main website for this project.
         ProjectUri = 'https://github.com/powershell/secretstore'

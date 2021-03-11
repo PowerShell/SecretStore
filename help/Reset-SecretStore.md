@@ -13,19 +13,20 @@ Resets the SecretStore by deleting all secret data and configuring the store wit
 ## SYNTAX
 
 ```
-Reset-SecretStore [-Scope <SecureStoreScope>] [-Authentication <Authenticate>] [-PasswordTimeout <Int32>]
- [-Interaction <Interaction>] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
+Reset-SecretStore [-Scope <SecureStoreScope>] [-Authentication <Authenticate>] [-Password <SecureString>]
+ [-PasswordTimeout <Int32>] [-Interaction <Interaction>] [-PassThru] [-Force] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 This cmdlet completely resets the SecretStore by deleting all secret data it may contain, and resetting configuration options to their default values.
-It is intended to be used only if a required password is lost, or data files become corrupted so that SecretStore no longer functions and secret data cannot be accessed.  
+It is intended to be used only if a required password is lost, or data files become corrupted so that SecretStore no longer functions and secret data cannot be accessed.
 Default configuration options can be overridden by specifying individual command configuration option parameters.
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Reset-SecretStore -PassThru
 WARNING: !!This operation will completely remove all SecretStore module secrets and reset configuration settings to default values!!
 
@@ -93,7 +94,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value:
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -203,11 +204,9 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ### Microsoft.PowerShell.SecretStore.SecureStoreConfig
-
 ## NOTES
 
 ## RELATED LINKS
