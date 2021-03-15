@@ -12,7 +12,7 @@
 
 ### New Features
 
-- `Set-SecretStoreConfiguration` command now takes a `-password` parameter so that there is not need to prompt for a password (Issue #46).
+- `Set-SecretStoreConfiguration` command now takes a `-Password` parameter so that there is not need to prompt for a password (Issue #46).
 
 ## 0.9.1 - 2021-3-1
 
