@@ -169,10 +169,10 @@ namespace Microsoft.PowerShell.SecretStore
         public SwitchParameter Default { get; set; }
 
         [Parameter]
-        public SwitchParameter PassThru { get; set; }
+        public SecureString Password { get; set; }
 
         [Parameter]
-        public SwitchParameter Force { get; set; }
+        public SwitchParameter PassThru { get; set; }
 
         #endregion
 
@@ -203,14 +203,30 @@ namespace Microsoft.PowerShell.SecretStore
                         this));
             }
 
-            if (!Force && !ShouldProcess(
+            var password = Utils.CheckPassword(Password);
+            var passwordRequired = LocalSecretStore.PasswordRequired;
+            if (passwordRequired == SecureStoreFile.PasswordConfiguration.Required && 
+                Authentication == Authenticate.Password && 
+                password != null)
+            {
+                ThrowTerminatingError(
+                    new ErrorRecord(
+                        exception: new PSNotSupportedException("The Microsoft.PowerShell.SecretStore is already configured to require a password, and a new password cannot be added.\nUse the Set-SecretStorePassword cmdlet to change an existing password."),
+                        errorId: "SecretStoreInvalidConfiguration",
+                        errorCategory: ErrorCategory.NotEnabled,
+                        this));
+            }
+
+            if (!ShouldProcess(
                 target: "SecretStore module local store",
                 action: "Changes local store configuration"))
             {
                 return;
             }
 
-            var oldConfigData = LocalSecretStore.GetInstance(cmdlet: this).Configuration;
+            var oldConfigData = LocalSecretStore.GetInstance(
+                password: passwordRequired == SecureStoreFile.PasswordConfiguration.NotRequired ? null : password,
+                cmdlet: this).Configuration;
             SecureStoreConfig newConfigData;
             if (ParameterSetName == ParameterSet)
             {
@@ -227,6 +243,7 @@ namespace Microsoft.PowerShell.SecretStore
 
             if (!LocalSecretStore.GetInstance(cmdlet: this).UpdateConfiguration(
                 newConfigData: newConfigData,
+                password: password,
                 cmdlet: this,
                 out string errorMsg))
             {

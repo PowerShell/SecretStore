@@ -25,7 +25,7 @@ If no password is provided by parameter argument, the user will be safely prompt
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Get-Secret secret1 -Vault LocalStore
 Get-Secret: A valid password is required to access the Microsoft.PowerShell.SecretStore vault.
 Get-Secret: The secret secret1 was not found.
@@ -84,7 +84,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### System.Security.SecureString
-
 ## OUTPUTS
 
 ## NOTES

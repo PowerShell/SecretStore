@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.9.2 - 2021-3-15
+
+### Fixes
+
+- Minor changes to help file format.
+
+### Changes
+
+- The `-Force` parameter was removed from the `Set-SecretStoreConfiguration` command, and instead the `-Confirm:$false` should be used to suppress PowerShell prompting in automation scripts.
+
+### New Features
+
+- `Set-SecretStoreConfiguration` command now takes a `-Password` parameter so that there is not need to prompt for a password (Issue #46).
+
 ## 0.9.1 - 2021-3-1
 
 ### Fixes

@@ -42,7 +42,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         # This deletes all SecretStore data!!
         Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
         Reset-SecretStore -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
-        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
+        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Confirm:$false
     }
 
     Context "SecretStore file permission tests" {

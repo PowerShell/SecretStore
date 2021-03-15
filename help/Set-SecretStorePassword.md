@@ -12,8 +12,14 @@ Replaces the current SecretStore password with a new one.
 
 ## SYNTAX
 
+### NoParameterSet (Default)
 ```
 Set-SecretStorePassword [<CommonParameters>]
+```
+
+### ParameterSet
+```
+Set-SecretStorePassword -NewPassword <SecureString> [-Password <SecureString>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -23,7 +29,7 @@ It takes no parameters and prompts the user for both the old and new passwords.
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Set-SecretStorePassword
 Old password
 Enter password:
@@ -40,12 +46,11 @@ The user is first prompted for the old password.
 And then prompted for the new password twice for verification.
 
 ### Example 2
-```powershell
+```
 PS C:\> Set-SecretStorePassword -NewPassword $newPassword -Password $oldPassword
 ```
 
-This example runs the command passing in both the current store password and the new
-password to be set.
+This example runs the command passing in both the current store password and the new password to be set.
 
 ## PARAMETERS
 
@@ -59,8 +64,8 @@ Aliases:
 
 Required: True
 Position: Named
-Default value:
-Accept pipeline input: True
+Default value: None
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
@@ -75,7 +80,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value:
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -86,7 +91,6 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ## NOTES

@@ -27,7 +27,7 @@ namespace Microsoft.PowerShell.SecretStore
     {
         #region Members
 
-        internal const string PasswordRequiredMessage = "A valid password is required to access the Microsoft.PowerShell.SecretStore vault.";
+        internal const string PasswordRequiredMessage = "A valid password is required to access the Microsoft.PowerShell.SecretStore vault.\nUse the Unlock-SecretStore cmdlet to provide the required password to access the store.";
 
         #endregion
 
@@ -624,7 +624,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
 
-        # region Public methods
+        #region Public methods
 
         public string ConvertToJson()
         {
@@ -1394,6 +1394,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public bool UpdateConfigData(
             SecureStoreConfig newConfigData,
+            SecureString password,
             PSCmdlet cmdlet,
             out string errorMsg)
         {
@@ -1417,6 +1418,10 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // If password requirement changed, then change password encryption as needed.
+            // The user will be prompted for password information only if needed.
+            // Password configuration change can be:
+            //  1. Password was not required before but now is (new password needed).
+            //  2. Password was required before but now is not (old password needed for change).
             if (oldConfigData.PasswordRequired != newConfigData.PasswordRequired)
             {
                 bool success;
@@ -1424,11 +1429,12 @@ namespace Microsoft.PowerShell.SecretStore
                 {
                     SecureString oldPassword;
                     SecureString newPassword;
+
                     if (newConfigData.PasswordRequired)
                     {
-                        // Prompt for new password
+                        // If a new password is now required and none provided, then prompt for it.
                         oldPassword = null;
-                        newPassword = Utils.PromptForPassword(
+                        newPassword = password ?? Utils.PromptForPassword(
                             cmdlet: cmdlet,
                             verifyPassword: true,
                             message: "A password is now required for the local store configuration.\nTo complete the change please provide new password.");
@@ -1440,9 +1446,10 @@ namespace Microsoft.PowerShell.SecretStore
                     }
                     else
                     {
-                        // Prompt for old password
+                        // Password is no longer required, but old password is needed to make the change.
+                        // If it was not provided, then prompt for it.
                         newPassword = null;
-                        oldPassword = Utils.PromptForPassword(
+                        oldPassword = password ?? Utils.PromptForPassword(
                             cmdlet: cmdlet,
                             verifyPassword: false,
                             message: "A password is no longer required for the local store configuration.\nTo complete the change please provide the current password.");
@@ -1923,6 +1930,17 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
 
+        #region Enums
+
+        public enum PasswordConfiguration
+        {
+            NoFileDefaultRequired = 0,
+            Required = 1,
+            NotRequired = 2
+        }
+
+        #endregion
+
         #region Properties
 
         public static DateTime LastConfigWriteTime
@@ -1961,6 +1979,23 @@ namespace Microsoft.PowerShell.SecretStore
 
                 // Default behavior is to allow password prompting.
                 return true;
+            }
+        }
+
+        public static PasswordConfiguration ConfigRequiresPassword
+        {
+            get
+            {
+                // Try to read the local store configuration file.
+                if (ReadConfigFile(
+                    configData: out SecureStoreConfig configData,
+                    out string _))
+                {
+                    return (configData.Authentication == Authenticate.Password) ? PasswordConfiguration.Required : PasswordConfiguration.NotRequired;
+                }
+
+                // Password is required by default.
+                return PasswordConfiguration.NoFileDefaultRequired;
             }
         }
 
@@ -2201,7 +2236,7 @@ namespace Microsoft.PowerShell.SecretStore
                 hash: hash,
                 dataToValidate: fileDataBlob))
             {
-                errorMsg = "Store file integrity check failed.";
+                errorMsg = "Store file integrity check failed.\nThe provided password may be invalid, or store files have become corrupted or have been tampered with.";
                 return false;
             }
 
@@ -2843,6 +2878,11 @@ namespace Microsoft.PowerShell.SecretStore
             get => SecureStoreFile.ConfigAllowsPrompting;
         }
 
+        internal static SecureStoreFile.PasswordConfiguration PasswordRequired
+        {
+            get => SecureStoreFile.ConfigRequiresPassword;
+        }
+
         #endregion
         
         #region Constructor
@@ -3190,11 +3230,13 @@ namespace Microsoft.PowerShell.SecretStore
 
         internal bool UpdateConfiguration(
             SecureStoreConfig newConfigData,
+            SecureString password,
             PSCmdlet cmdlet,
             out string errorMsg)
         {
             return _secureStore.UpdateConfigData(
                 newConfigData,
+                password,
                 cmdlet,
                 out errorMsg);
         }

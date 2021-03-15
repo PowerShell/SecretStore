@@ -15,12 +15,14 @@ Sets SecretStore configuration properties.
 ### ParameterSet (Default)
 ```
 Set-SecretStoreConfiguration [-Scope <SecureStoreScope>] [-Authentication <Authenticate>]
- [-PasswordTimeout <Int32>] [-Interaction <Interaction>] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
+ [-PasswordTimeout <Int32>] [-Interaction <Interaction>] [-Password <SecureString>] [-PassThru] [-WhatIf]
+ [-Confirm] [<CommonParameters>]
 ```
 
 ### DefaultParameterSet
 ```
-Set-SecretStoreConfiguration [-Default] [-Force] [-WhatIf] [-Confirm] [<CommonParameters>]
+Set-SecretStoreConfiguration [-Default] [-Password <SecureString>] [-PassThru] [-WhatIf] [-Confirm]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -30,7 +32,7 @@ Or the '-Default' parameter can be used to restore SecretStore configuration to 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+```
 PS C:\> Set-SecretStoreConfiguration -Default
 
 Confirm
@@ -44,6 +46,46 @@ CurrentUser       Password             900      Prompt
 ```
 
 This example uses the command to restore the SecretStore configuration settings to their default values.
+
+### Example 2
+```
+Install-Module -Name Microsoft.PowerShell.SecretStore -Repository PSGallery -Force
+$password = Import-CliXml -Path $securePasswordPath.xml
+Set-SecretStoreConfiguration -Scope CurrentUser -Authentication Password -PasswordTimeout 3600 -Interaction None -Password $password -Confirm:$false
+
+Install-Module -Name Microsoft.PowerShell.SecretManagement -Repository PSGallery -Force
+Register-SecretVault -Name SecretStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+
+Unlock-SecretStore -Password $password
+```
+
+This is an example of automation script that installs and configures the Microsoft.PowerShell.SecretStore module without user prompting.
+The configuration requires a password and sets user interaction to None, so that SecretStore will never prompt the user.
+The configuration also requires a password, and the password is passed in as a SecureString object.
+The \`-Confirm:false\` parameter is used so that PowerShell will not prompt for confirmation.
+
+Next, the SecretManagement module is installed and the SecretStore module registered so that  the SecretStore secrets can be managed.
+
+The \`Unlock-SecretStore\` cmdlet is used to unlock the SecretStore for this session.
+The password timeout was configured for 1 hour and SecretStore will remain unlocked in the session for that amount of time, after which it will need to be unlocked again before secrets can be accessed.
+
+### Example 3
+```
+PS C:\> Get-SecretStoreConfiguration
+
+      Scope Authentication PasswordTimeout Interaction
+      ----- -------------- --------------- -----------
+CurrentUser       Password             900        None
+
+PS C:\> Set-SecretStoreConfiguration -Authentication Password -Password $password
+Set-SecretStoreConfiguration: The Microsoft.PowerShell.SecretStore is already configured to require a password, and a new password cannot be added.
+Use the Set-SecretStorePassword cmdlet to change an existing password.
+```
+
+This example attempts to set the SecretStore configuration to require a password and provides a new password.
+But this results in an error.
+This command cannot be used to change an existing password but only to toggle authentication to require or not require a password.
+To change an existing SecretStore password, use the \`Set-SecretStorePassword\` command.
 
 ## PARAMETERS
 
@@ -80,9 +122,8 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Force
-When used, the user will not be asked to confirm and the SecretStore will be reset without prompting.
-Default value is false, and user will be asked to confirm the operation.
+### -PassThru
+When used, will write the current SecretStore configuration to the pipeline.
 
 ```yaml
 Type: SwitchParameter
@@ -96,17 +137,21 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -PassThru
-When used, will write the current SecretStore configuration to the pipeline.
+### -Password
+Password to be applied when changing the authentication configuration.
+When changing the configuration from no password required to password required, the provided password will be set as the new store password.
+When changing the configuration from password required to no password required, the provided password will be used to authorize the configuration change, and must be the current password used to unlock the store.
+This command cannot be used to change the store password.
+To change an existing password, use the \`Set-SecretStorePassword\` command.
 
 ```yaml
-Type: SwitchParameter
+Type: SecureString
 Parameter Sets: (All)
 Aliases:
 
 Required: False
 Position: Named
-Default value: False
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -201,11 +246,9 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 ## INPUTS
 
 ### None
-
 ## OUTPUTS
 
 ### Microsoft.PowerShell.SecretStore.SecureStoreConfig
-
 ## NOTES
 
 ## RELATED LINKS
