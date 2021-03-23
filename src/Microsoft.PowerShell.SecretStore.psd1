@@ -31,7 +31,7 @@ Copyright = '(c) Microsoft Corporation. All rights reserved.'
 # Description of the functionality provided by this module
 Description = "
 This PowerShell module is an extension vault for the PowerShell SecretManagement module.
-As an extension vault, this module stores secrets to the local machine based on the current user 
+As an extension vault, this module stores secrets to the local machine based on the current user
 account context. The secrets are encrypted on file using .NET Crypto APIs. A password is required
 in the default configuration. The configuration can be changed with the provided cmdlets.
 
@@ -77,6 +77,6 @@ PrivateData = @{
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-# HelpInfoURI = ''
+HelpInfoURI = 'https://aka.ms/ps-modules-help'
 
 }
