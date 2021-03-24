@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.0.0 - 2021-3-25
+
+### Fixes
+
+- `Set-SecretStoreConfiguration` will throw an error when setting a password if a password has already been set. In this case `Set-SecretStorePassword` must be used to reset an existing password.
+
+- Fixed license Url in module manifest.
+
+### Changes
+
+- Minor changes to architecture document.
+
+### New Features
+
 ## 0.9.2 - 2021-3-15
 
 ### Fixes
@@ -12,7 +26,7 @@
 
 ### New Features
 
-- `Set-SecretStoreConfiguration` command now takes a `-Password` parameter so that there is not need to prompt for a password (Issue #46).
+- `Set-SecretStoreConfiguration` command now takes a `-Password` parameter so that there is no need to prompt for a password (Issue #46).
 
 ## 0.9.1 - 2021-3-1
 
