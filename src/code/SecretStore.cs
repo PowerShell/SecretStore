@@ -207,6 +207,7 @@ namespace Microsoft.PowerShell.SecretStore
             var passwordRequired = LocalSecretStore.PasswordRequired;
             if (passwordRequired == SecureStoreFile.PasswordConfiguration.Required && 
                 Authentication == Authenticate.Password && 
+                SecureStoreFile.StoreFileExists() &&
                 password != null)
             {
                 ThrowTerminatingError(
@@ -313,7 +314,7 @@ namespace Microsoft.PowerShell.SecretStore
                         this));
             }
 
-            WriteWarning("!!This operation will completely remove all SecretStore module secrets and reset configuration settings to default values!!");
+            WriteWarning("!!This operation completely removes all SecretStore module secrets and resets configuration settings to new values!!");
         }
 
         protected override void EndProcessing()
