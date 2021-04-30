@@ -220,6 +220,15 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
             $success | Should -Not -BeTrue
         }
 
+        It "Verifies [datetime] type wrapped in a PSObject" {
+            $errorMsg = ""
+            $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
+                $secretName,
+                (@{ Created = (Get-Date) }),
+                [ref] $errorMsg)
+            $success | Should -BeTrue
+        }
+
         It "Verifies expected no secret found error" {
             $errorMsg = ""
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteMetadata(
