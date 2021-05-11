@@ -1,12 +1,10 @@
 # CHANGELOG
 
-## 1.1.0 - 2021-5-10
+## 1.0.1 - 2021-5-17
 
 ### Fixes
 
 - Metadata does not accept datetime from Get-Date (Issue #59).
-
-- SecretStore requires Full Language mode (Issue #64).
 
 - Add better error message when running under Windows built-in accounts (Issue #63).
 
