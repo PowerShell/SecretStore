@@ -52,7 +52,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static PSObject ConvertJsonToPSObject(string json)
         {
             var results = PowerShellInvoker.InvokeScriptCommon<PSObject>(
-                script: @"param ([string] $json) ConvertFrom-Json -InputObject $json",
+                script: @"param ([string] $json) Microsoft.PowerShell.Utility\ConvertFrom-Json -InputObject $json",
                 args: new object[] { json },
                 error: out ErrorRecord _);
 
@@ -62,7 +62,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
             var results = PowerShellInvoker.InvokeScriptCommon<string>(
-                script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable -Depth 5",
+                script: @"param ([hashtable] $hashtable) Microsoft.PowerShell.Utility\ConvertTo-Json -InputObject $hashtable -Depth 5",
                 args: new object[] { hashtable },
                 error: out ErrorRecord _);
 

@@ -1,12 +1,14 @@
 # CHANGELOG
 
-## 1.0.1 - 2021-5-17
+## 1.0.2 - 2021-5-17
 
 ### Fixes
 
 - Metadata does not accept datetime from Get-Date (Issue #59).
 
 - Add better error message when running under Windows built-in accounts (Issue #63).
+
+- Store update no longer removes current information on read failure (Issue ??).
 
 ### Changes
 
