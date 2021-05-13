@@ -1489,19 +1489,18 @@ namespace Microsoft.PowerShell.SecretStore
 
         public void UpdateDataFromFile()
         {
-            SecureStoreData data;
-            if (!SecureStoreFile.ReadFile(
+            if (SecureStoreFile.ReadFile(
                 password: _password,
-                data: out data,
+                data: out SecureStoreData data,
                 out string _))
             {
-                data = SecureStoreData.CreateEmpty();
+                lock (_syncObject)
+                {
+                    _data = data;
+                }
             }
             
-            lock (_syncObject)
-            {
-                _data = data;
-            }
+            // If file read fails (e.g., password expired), then skip the update.
         }
 
         #endregion
