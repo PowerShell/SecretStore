@@ -8,9 +8,11 @@
 
 - Add better error message when running under Windows built-in accounts (Issue #63).
 
-- Store update no longer removes current information on read failure (Issue ??).
+- Store update no longer removes current information on read failure.
 
 ### Changes
+
+- Add support for SecretManagement `Unlock-SecretVault` command.
 
 ### New Features
 
