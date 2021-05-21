@@ -3003,21 +3003,29 @@ namespace Microsoft.PowerShell.SecretStore
             return LocalStore;
         }
 
-        public static void Reset()
-        {
-            lock (SyncObject)
-            {
-                LocalStore?.Dispose();
-                LocalStore = null;
-            }
-        }
-
         public static void PromptAndUnlockVault(
             string vaultName,
             PSCmdlet cmdlet)
         {
             var password = PromptForPassword(vaultName, cmdlet);
             LocalSecretStore.GetInstance(password).UnlockLocalStore(password);
+        }
+
+        public static bool UnlockVault(
+            SecureString password,
+            out string errorMsg)
+        {
+            try
+            {
+                LocalSecretStore.GetInstance(password).UnlockLocalStore(password);
+                errorMsg = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMsg = ex.Message;
+                return false;
+            }
         }
 
         #endregion
@@ -3243,6 +3251,15 @@ namespace Microsoft.PowerShell.SecretStore
             if (passwordTimeout.HasValue)
             {
                 _secureStore.SetPasswordTimer(passwordTimeout.Value);
+            }
+        }
+
+        internal static void Reset()
+        {
+            lock (SyncObject)
+            {
+                LocalStore?.Dispose();
+                LocalStore = null;
             }
         }
 

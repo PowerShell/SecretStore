@@ -267,6 +267,31 @@ function Remove-Secret
     Write-Error -ErrorRecord $errorRecord
 }
 
+function Unlock-SecretVault
+{
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
+    [CmdletBinding()]
+    param (
+        [SecureString] $Password,
+        [hashtable] $CredentialInfo,
+        [string] $VaultName,
+        [hashtable] $AdditionalParameters
+    )
+
+    $errorMsg = ""    
+    if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::UnlockVault($Password, [ref] $errorMsg))
+    {
+        $Msg = "$VaultName Vault Unlock operation failed with error: $errorMsg"
+
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+            [System.Security.Authentication.AuthenticationException]::new($Msg),
+            "SecretStoreUnlockFailed",
+            [System.Management.Automation.ErrorCategory]::AuthenticationError,
+            $null)
+        Write-Error -ErrorRecord $errorRecord
+    }
+}
+
 function Test-SecretVault
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
