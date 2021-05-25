@@ -37,24 +37,11 @@ namespace Microsoft.PowerShell.SecretStore
         {
             IsWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
                 System.Runtime.InteropServices.OSPlatform.Windows);
-
-            if (IsWindows)
-            {
-                var locationPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                SecretManagementLocalPath = Path.Combine(locationPath, "Microsoft", "PowerShell", "secretmanagement");
-            }
-            else
-            {
-                var locationPath = Environment.GetEnvironmentVariable("HOME");
-                SecretManagementLocalPath = Path.Combine(locationPath, ".secretmanagement");
-            }
         }
 
         #endregion
 
         #region Properties
-
-        public static string SecretManagementLocalPath { get; }
 
         public static bool IsWindows { get; }
 
@@ -65,7 +52,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static PSObject ConvertJsonToPSObject(string json)
         {
             var results = PowerShellInvoker.InvokeScriptCommon<PSObject>(
-                script: @"param ([string] $json) ConvertFrom-Json -InputObject $json",
+                script: @"param ([string] $json) Microsoft.PowerShell.Utility\ConvertFrom-Json -InputObject $json",
                 args: new object[] { json },
                 error: out ErrorRecord _);
 
@@ -75,7 +62,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static string ConvertHashtableToJson(Hashtable hashtable)
         {
             var results = PowerShellInvoker.InvokeScriptCommon<string>(
-                script: @"param ([hashtable] $hashtable) ConvertTo-Json -InputObject $hashtable -Depth 5",
+                script: @"param ([hashtable] $hashtable) Microsoft.PowerShell.Utility\ConvertTo-Json -InputObject $hashtable -Depth 5",
                 args: new object[] { hashtable },
                 error: out ErrorRecord _);
 
@@ -1502,19 +1489,18 @@ namespace Microsoft.PowerShell.SecretStore
 
         public void UpdateDataFromFile()
         {
-            SecureStoreData data;
-            if (!SecureStoreFile.ReadFile(
+            if (SecureStoreFile.ReadFile(
                 password: _password,
-                data: out data,
+                data: out SecureStoreData data,
                 out string _))
             {
-                data = SecureStoreData.CreateEmpty();
+                lock (_syncObject)
+                {
+                    _data = data;
+                }
             }
             
-            lock (_syncObject)
-            {
-                _data = data;
-            }
+            // If file read fails (e.g., password expired), then skip the update.
         }
 
         #endregion
@@ -1819,7 +1805,6 @@ namespace Microsoft.PowerShell.SecretStore
         private const string StoreConfigName = "storeconfig";
         private const string StoreKeyFileName = "storeaux";
 
-        private static readonly string LocalStorePath;
         private static readonly string LocalStoreFilePath;
         private static readonly string LocalConfigFilePath;
         private static readonly string LocalKeyFilePath;
@@ -1830,6 +1815,7 @@ namespace Microsoft.PowerShell.SecretStore
         private static DateTime _lastConfigWriteTime;
         private static DateTime _lastStoreWriteTime;
         private static DateTime _lastStoreFileChange;
+        private static readonly bool _isLocationPathValid;
 
         #endregion
 
@@ -1837,34 +1823,56 @@ namespace Microsoft.PowerShell.SecretStore
 
         static SecureStoreFile()
         {
-            LocalStorePath = Path.Combine(Utils.SecretManagementLocalPath, "localstore");
-            LocalStoreFilePath = Path.Combine(LocalStorePath, StoreFileName);
-            LocalConfigFilePath = Path.Combine(LocalStorePath, StoreConfigName);
-            LocalKeyFilePath = Path.Combine(LocalStorePath, StoreKeyFileName);
+            _syncObject = new object();
 
-            if (!Directory.Exists(LocalStorePath))
+            string locationPath;
+            string secretManagementLocalPath;
+            if (Utils.IsWindows)
             {
-                Directory.CreateDirectory(LocalStorePath);
+                locationPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                secretManagementLocalPath = Path.Combine(locationPath, "Microsoft", "PowerShell", "secretmanagement");
+            }
+            else
+            {
+                locationPath = Environment.GetEnvironmentVariable("HOME");
+                secretManagementLocalPath = Path.Combine(locationPath, ".secretmanagement");
+            }
+
+            _isLocationPathValid = !string.IsNullOrEmpty(locationPath);
+            if (!_isLocationPathValid)
+            {
+                // File location path can be invalid for some Windows built-in account scenarios.
+                // Surface the error later when not initializing a type.
+                return;
+            }
+
+            var localStorePath = Path.Combine(secretManagementLocalPath, "localstore");
+            LocalStoreFilePath = Path.Combine(localStorePath, StoreFileName);
+            LocalConfigFilePath = Path.Combine(localStorePath, StoreConfigName);
+            LocalKeyFilePath = Path.Combine(localStorePath, StoreKeyFileName);
+
+            if (!Directory.Exists(localStorePath))
+            {
+                Directory.CreateDirectory(localStorePath);
 
                 if (Utils.IsWindows)
                 {
-                    SetDirectoryACLs(LocalStorePath);
+                    SetDirectoryACLs(localStorePath);
                 }
                 else
                 {
                     SetFilePermissions(
-                        filePath: LocalStorePath,
+                        filePath: localStorePath,
                         isDirectory: true);
                 }
             }
 
-            _storeFileWatcher = new FileSystemWatcher(LocalStorePath);
+            _storeFileWatcher = new FileSystemWatcher(localStorePath);
             _storeFileWatcher.NotifyFilter = NotifyFilters.LastWrite;
             _storeFileWatcher.Filter = "store*";    // storefile, storeconfig
             _storeFileWatcher.EnableRaisingEvents = true;
             _storeFileWatcher.Changed += (sender, args) => { UpdateData(args); };
 
-            _syncObject = new object();
             _lastConfigWriteTime = DateTime.MinValue;
             _lastStoreWriteTime = DateTime.MinValue;
             _updateEventTimer = new Timer(
@@ -2019,6 +2027,8 @@ namespace Microsoft.PowerShell.SecretStore
             SecureStoreData data,
             out string errorMsg)
         {
+            CheckFilePath();
+
             // Encrypt json meta data.
             var jsonStr = data.ConvertMetaToJson();
             var jsonBlob = CryptoUtils.EncryptWithKey(
@@ -2160,6 +2170,8 @@ namespace Microsoft.PowerShell.SecretStore
             out SecureStoreData data,
             out string errorMsg)
         {
+            CheckFilePath();
+
             data = null;
 
             if (!File.Exists(LocalStoreFilePath))
@@ -2290,6 +2302,8 @@ namespace Microsoft.PowerShell.SecretStore
             SecureStoreConfig configData,
             out string errorMsg)
         {
+            CheckFilePath();
+
             // Encrypt config json data.
             var jsonStr = configData.ConvertToJson();
             var encryptKey = CryptoUtils.GenerateKeyFromUserName();
@@ -2354,6 +2368,8 @@ namespace Microsoft.PowerShell.SecretStore
             out SecureStoreConfig configData,
             out string errorMsg)
         {
+            CheckFilePath();
+
             configData = null;
 
             if ((!File.Exists(LocalConfigFilePath)))
@@ -2414,6 +2430,8 @@ namespace Microsoft.PowerShell.SecretStore
 
         public static bool RemoveStoreFile(out string errorMsg)
         {
+            CheckFilePath();
+
             var count = 0;
             Exception exFail = null;
             do
@@ -2764,6 +2782,17 @@ namespace Microsoft.PowerShell.SecretStore
         }
         */
 
+        private static void CheckFilePath()
+        {
+            if (!_isLocationPathValid)
+            {
+                var msg = Utils.IsWindows ? 
+                            "Unable to find a Local Application Data folder location for the current user, which is needed to store vault information for this configuration scope.\nWindows built-in accounts do not provide the Location Application Data folder and are not currently supported for this configuration scope." :
+                            "Unable to find a 'HOME' path location for the current user, which is needed to store vault information for this configuration scope.";
+                throw new InvalidOperationException(msg);
+            }
+        }
+
         #endregion
     }
 
@@ -2974,21 +3003,29 @@ namespace Microsoft.PowerShell.SecretStore
             return LocalStore;
         }
 
-        public static void Reset()
-        {
-            lock (SyncObject)
-            {
-                LocalStore?.Dispose();
-                LocalStore = null;
-            }
-        }
-
         public static void PromptAndUnlockVault(
             string vaultName,
             PSCmdlet cmdlet)
         {
             var password = PromptForPassword(vaultName, cmdlet);
             LocalSecretStore.GetInstance(password).UnlockLocalStore(password);
+        }
+
+        public static bool UnlockVault(
+            SecureString password,
+            out string errorMsg)
+        {
+            try
+            {
+                LocalSecretStore.GetInstance(password).UnlockLocalStore(password);
+                errorMsg = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMsg = ex.Message;
+                return false;
+            }
         }
 
         #endregion
@@ -3217,6 +3254,15 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
+        internal static void Reset()
+        {
+            lock (SyncObject)
+            {
+                LocalStore?.Dispose();
+                LocalStore = null;
+            }
+        }
+
         internal void UpdatePassword(
             SecureString newPassword,
             SecureString oldPassword)
@@ -3421,6 +3467,10 @@ namespace Microsoft.PowerShell.SecretStore
                 foreach (string key in metadata.Keys)
                 {
                     var item = metadata[key];
+                    if (item is PSObject psObjectItem)
+                    {
+                        item = psObjectItem.BaseObject;
+                    }
                     if (!(item is string) && !(item is int) && !(item is DateTime))
                     {
                         errorMsg = "Microsoft.PowerShell.SecretStore accepts secret metadata only of types: string, int, DateTime";

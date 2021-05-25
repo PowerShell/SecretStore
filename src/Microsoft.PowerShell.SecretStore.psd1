@@ -11,7 +11,7 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '1.0.0'
+ModuleVersion = '1.0.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -41,6 +41,8 @@ https://github.com/powershell/SecretStore
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
+DotNetFrameworkVersion = '4.6.1'
+CLRVersion = '4.0.0'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @('Unlock-SecretStore','Set-SecretStorePassword','Get-SecretStoreConfiguration','Set-SecretStoreConfiguration','Reset-SecretStore')

@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.0.2 - 2021-5-17
+
+### Fixes
+
+- Metadata does not accept datetime from Get-Date (Issue #59).
+
+- Add better error message when running under Windows built-in accounts (Issue #63).
+
+- Store update no longer removes current information on read failure.
+
+### Changes
+
+- Add support for SecretManagement `Unlock-SecretVault` command.
+
+### New Features
+
 ## 1.0.0 - 2021-3-25
 
 ### Fixes
