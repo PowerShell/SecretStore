@@ -10,6 +10,9 @@ pr:
     include:
     - master
 
+variables:
+  - group: ESRP
+
 resources:
   repositories:
   - repository: ComplianceRepo
@@ -24,7 +27,9 @@ stages:
   - job: BuildPkg
     displayName: Build Package
     pool:
-      vmImage: windows-latest
+      name: 1ES
+      demands:
+      - ImageOverride -equals MMS2019
 
     steps:
     - powershell: |
@@ -95,14 +100,63 @@ stages:
         $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
-        $config = Get-PSPackageProjectConfiguration
         #
-        $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
+        $config = Get-PSPackageProjectConfiguration
+        $signSrcPath = "$($config.BuildOutputPath)\$($config.ModuleName)"
+        $signOutPath = "$($config.SignedOutputPath)\$($config.ModuleName)"
+        if (! (Test-Path -Path $signOutPath)) {
+          $null = New-Item -Path $signOutPath -ItemType Directory
+        }
+        
+        # Set signing src path variable
+        $vstsCommandString = "vso[task.setvariable variable=signSrcPath]${signSrcPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+
+        # Set signing out path variable
+        $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
+        Write-Host "sending " + $vstsCommandString
+        Write-Host "##$vstsCommandString"
+      displayName: Set signing variables for possible module code signing
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+      displayName: Capture environment for module code signing
+      condition: succeededOrFailed()
+
+    - template: EsrpSign.yml@ComplianceRepo
+      parameters:
+        buildOutputPath: $(signSrcPath)
+        signOutputPath: $(signOutPath)
+        certificateId: "CP-230012"
+        pattern: |
+          Microsoft.PowerShell.SecretStore.dll
+          **\*.psd1
+          **\*.psm1
+        useMinimatch: true
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
+        $config = Get-PSPackageProjectConfiguration
+        if ($env:SkipSigning -eq 'True')
+        {
+          $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
+          $(Build.SourcesDirectory)/build.ps1 -Publish
+        }
+        else
+        {
+          $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
+          $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
+        }
+        # Publish un-packaged module directory
         Get-ChildItem $srcModulePath
         $artifactName = "$($config.ModuleName)"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
-        #
-        $(Build.SourcesDirectory)/build.ps1 -Publish
       displayName: Create module artifact
 
 - stage: Compliance
@@ -111,7 +165,10 @@ stages:
   jobs:
   - job: ComplianceJob
     pool:
-      vmImage: windows-latest
+      name: 1ES
+      demands:
+      - ImageOverride -equals MMS2019
+
     steps:
     - checkout: self
       clean: true
@@ -119,10 +176,22 @@ stages:
       clean: true
     - download: current
       artifact: 'Microsoft.PowerShell.SecretStore'
-    - template: ci-compliance.yml@ComplianceRepo
+    - template: assembly-module-compliance.yml@ComplianceRepo
       parameters:
+        # binskim
+        AnalyzeTarget: '$(Pipeline.Workspace)/Microsoft.PowerShell.SecretStore/*.dll'
+        AnalyzeSymPath: 'SRV*'
+        # component-governance
+        sourceScanPath: '$(Build.SourcesDirectory)'
         # credscan
         suppressionsFile: ''
+        # TermCheck
+        optionsRulesDBPath: ''
+        optionsFTPath: ''
+        # tsa-upload
+        codeBaseName: 'PSSecretStore_201508'
+        # selections
+        APIScan: false # set to false when not using Windows APIs
 
 - stage: Test
   displayName: Test Package
@@ -132,13 +201,13 @@ stages:
     parameters:
       jobName: TestPkgWin
       displayName: PowerShell Core on Windows
-      imageName: windows-latest
+      imageName: windows-2019
 
   - template: test.yml
     parameters:
       jobName: TestPkgWinPS
       displayName: Windows PowerShell on Windows
-      imageName: windows-latest
+      imageName: windows-2019
       powershellExecutable: powershell
 
   - template: test.yml
@@ -152,3 +221,9 @@ stages:
       jobName: TestPkgWinMacOS
       displayName: PowerShell Core on macOS
       imageName: macOS-latest
+
+- stage: Release
+  displayName: Release Package
+  condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), eq(variables['Publish'], 'True'))
+  jobs:
+  - template: release.yml
