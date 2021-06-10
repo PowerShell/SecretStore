@@ -164,6 +164,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
         }
     }
 
+    # Setting and retrieving additional metadata.
     Context "SecretStore metadata function" {
 
         $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
