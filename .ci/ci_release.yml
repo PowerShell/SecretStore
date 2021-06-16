@@ -32,31 +32,6 @@ stages:
       - ImageOverride -equals MMS2019
 
     steps:
-    - powershell: |
-        $powerShellPath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'powershell'
-        Invoke-WebRequest -Uri https://raw.githubusercontent.com/PowerShell/PowerShell/master/tools/install-powershell.ps1 -outfile ./install-powershell.ps1
-        ./install-powershell.ps1 -Destination $powerShellPath
-        $vstsCommandString = "vso[task.setvariable variable=PATH]$powerShellPath;$env:PATH"
-        Write-Host "sending " + $vstsCommandString
-        Write-Host "##$vstsCommandString"
-      displayName: Install PowerShell Core
-
-    - task: UseDotNet@2
-      displayName: 'Install .NET Core 3.1.401 sdk'
-      inputs:
-        packageType: sdk
-        version: 3.1.401
-
-    - task: NuGetToolInstaller@1
-      displayName: 'Install NuGet 5.6.0'
-      inputs:
-        checkLatest: false
-        version: 5.6.0
-
-    - pwsh: |
-        Get-ChildItem -Path env:
-      displayName: Capture environment for build
-      condition: succeededOrFailed()
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -83,6 +58,12 @@ stages:
         Write-Verbose -Verbose "Install PSPackageProject to temp module path"
         Save-Module -Name PSPackageProject -Path $modulePath -Force
       displayName: Install PSPackageProject and dependencies
+
+    - pwsh: |
+        Get-ChildItem -Path env:
+        Get-ChildItem -Path . -Recurse -Directory
+      displayName: Capture environment for build
+      condition: succeededOrFailed()
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
@@ -121,7 +102,8 @@ stages:
 
     - pwsh: |
         Get-ChildItem -Path env:
-      displayName: Capture environment for module code signing
+        Get-ChildItem -Path . -Recurse -Directory
+      displayName: Capture environment for code signing
       condition: succeededOrFailed()
 
     - template: EsrpSign.yml@ComplianceRepo
