@@ -1,14 +1,15 @@
 name: $(BuildDefinitionName)-$(date:yyMM).$(date:dd)$(rev:rrr)
-trigger:
-  # Batch merge builds together while a merge build is running
-  batch: true
+trigger: none
+pr: none
+
+schedules:
+# Use https://crontab.guru/#0_8_*_*_* to compute crontab expression
+# Run signed build, with limited signing cert, every day at 9 am
+- cron: 0 9 * * *
   branches:
     include:
-    - master
-pr:
-  branches:
-    include:
-    - master
+    - refs/heads/master
+  always: true
 
 variables:
   - group: ESRP
@@ -98,7 +99,7 @@ stages:
         $vstsCommandString = "vso[task.setvariable variable=signOutPath]${signOutPath}"
         Write-Host "sending " + $vstsCommandString
         Write-Host "##$vstsCommandString"
-      displayName: Set signing variables for possible module code signing
+      displayName: Set signing path variables for possible module code signing
 
     - pwsh: |
         Get-ChildItem -Path env:
@@ -110,11 +111,12 @@ stages:
       parameters:
         buildOutputPath: $(signSrcPath)
         signOutputPath: $(signOutPath)
-        certificateId: "CP-230012"
+        certificateId: "CP-460906"
+        shouldSign: $SHOULDSIGN
         pattern: |
-          Microsoft.PowerShell.SecretStore.dll
-          **\*.psd1
-          **\*.psm1
+          *.dll
+          *.psd1
+          *.ps1xml
         useMinimatch: true
 
     - pwsh: |
@@ -124,22 +126,24 @@ stages:
         Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
         Import-Module -Name $modPath -Force
         #
+        $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
+      displayName: Create module artifact
+      condition: succeeded()
+
+    - pwsh: |
+        $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
+        $env:PSModulePath = $modulePath + [System.IO.Path]::PathSeparator + $env:PSModulePath
+        $modPath = Join-Path -Path $modulePath -ChildPath PSPackageProject
+        Write-Verbose -Verbose "Importing PSPackageProject from: $modPath"
+        Import-Module -Name $modPath -Force
+        #
         $config = Get-PSPackageProjectConfiguration
-        if ($env:SkipSigning -eq 'True')
-        {
-          $srcModulePath = Resolve-Path -Path "$($config.BuildOutputPath)/$($config.ModuleName)"
-          $(Build.SourcesDirectory)/build.ps1 -Publish
-        }
-        else
-        {
-          $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
-          $(Build.SourcesDirectory)/build.ps1 -Publish -Signed
-        }
-        # Publish un-packaged module directory
+        $srcModulePath = Resolve-Path -Path "$($config.SignedOutputPath)/$($config.ModuleName)"
         Get-ChildItem $srcModulePath
         $artifactName = "$($config.ModuleName)"
         Write-Host "##vso[artifact.upload containerfolder=$artifactName;artifactname=$artifactName;]$srcModulePath"
-      displayName: Create module artifact
+      displayName: Create and upload the module artifacts
+      condition: succeeded()
 
 - stage: Compliance
   displayName: Compliance
@@ -150,7 +154,6 @@ stages:
       name: 1ES
       demands:
       - ImageOverride -equals MMS2019
-
     steps:
     - checkout: self
       clean: true
@@ -183,19 +186,19 @@ stages:
     parameters:
       jobName: TestPkgWin
       displayName: PowerShell Core on Windows
-      imageName: windows-2019
+      imageName: windows-latest
 
   - template: test.yml
     parameters:
       jobName: TestPkgWinPS
       displayName: Windows PowerShell on Windows
-      imageName: windows-2019
+      imageName: windows-latest
       powershellExecutable: powershell
 
   - template: test.yml
     parameters:
       jobName: TestPkgUbuntu16
-      displayName: PowerShell Core on Ubuntu 16.04
+      displayName: PowerShell Core on Ubuntu
       imageName: ubuntu-latest
 
   - template: test.yml
@@ -203,9 +206,3 @@ stages:
       jobName: TestPkgWinMacOS
       displayName: PowerShell Core on macOS
       imageName: macOS-latest
-
-- stage: Release
-  displayName: Release Package
-  condition: and(and(succeeded(), eq(variables['Build.Reason'], 'Manual')), eq(variables['Publish'], 'True'))
-  jobs:
-  - template: release.yml
