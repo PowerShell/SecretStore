@@ -13,7 +13,7 @@ jobs:
   steps:
 
   - task: DownloadPipelineArtifact@2
-    displayName: 'Download SecretSTore module artifacts'
+    displayName: 'Download SecretStore module artifacts'
     inputs:
       artifact: nugetpkg
       patterns: '**/*.nupkg'
