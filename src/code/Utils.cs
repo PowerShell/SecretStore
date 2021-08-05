@@ -1132,8 +1132,8 @@ namespace Microsoft.PowerShell.SecretStore
 
             lock (_syncObject)
             {
-                _password = password;
-                if (password != null)
+                _password = password?.Copy();
+                if (_password != null)
                 {
                     SetPasswordTimer(_configData.PasswordTimeout);
                 }
@@ -1471,9 +1471,14 @@ namespace Microsoft.PowerShell.SecretStore
                         _configData = oldConfigData;
                     }
 
-                    SecureStoreFile.WriteConfigFile(
+                    if (!SecureStoreFile.WriteConfigFile(
                         oldConfigData,
-                        out errorMsg);
+                        out string revertErrorMsg))
+                    {
+                        errorMsg += string.Format(CultureInfo.InvariantCulture,
+                            @"\nUnable to restore local store configuration data with error: {0}",
+                            revertErrorMsg);
+                    }
 
                     return false;
                 }
@@ -1597,7 +1602,13 @@ namespace Microsoft.PowerShell.SecretStore
 
                 outMetaData.Add(
                     key: metaItem.Name,
-                    value: new SecureStoreMetadata(metaItem));
+                    value: new SecureStoreMetadata(
+                        name: metaItem.Name,
+                        typeName: metaItem.TypeName,
+                        offset: offset,
+                        size: newBlobItem.Length,
+                        attributes: metaItem.Attributes,
+                        additionalData: metaItem.AdditionalData));
                     
                 newBlobArray.AddRange(newBlobItem);
 
