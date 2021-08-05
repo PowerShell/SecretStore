@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.0.3 - 2021-8-12
+
+### Fixes
+
+- Fix race condition where updating store configuration fails with invalid password (Issue #79).
+
+- Update password failure errors are now surfaced to users (Issue #79).
+
+- Fix for random data corruption when password is updated.
+
+### Changes
+
+### New Features
+
 ## 1.0.2 - 2021-5-17
 
 ### Fixes
