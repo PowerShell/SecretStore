@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.0.4 - 2021-8-30
+
+### Fixes
+
+- Workaround Windows bug where UserName environment variable is incorrect case (Issue #62).
+
+### Changes
+
+### New Features
+
 ## 1.0.3 - 2021-8-12
 
 ### Fixes
