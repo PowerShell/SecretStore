@@ -31,6 +31,15 @@ namespace Microsoft.PowerShell.SecretStore
 
         #endregion
 
+        #region Separators
+
+        internal static class Separators
+        {
+            public static readonly char[] Backslash = new char[] { '\\' };
+        }
+
+        #endregion
+
         #region Constructor
 
         static Utils()
@@ -48,6 +57,29 @@ namespace Microsoft.PowerShell.SecretStore
         #endregion
 
         #region Methods
+
+        public static string GetCurrentUserName()
+        {
+            if (IsWindows)
+            {
+                try
+                {
+                    var nameParts = WindowsIdentity.GetCurrent().Name.Split(Separators.Backslash);
+                    switch (nameParts.Length)
+                    {
+                        case 1:
+                            return nameParts[0];
+
+                        case 2:
+                            // 'DOMAIN\UserName'
+                            return nameParts[1];
+                    }
+                }
+                catch (SecurityException) { }
+            }
+
+            return Environment.UserName;
+        }
 
         public static PSObject ConvertJsonToPSObject(string json)
         {
@@ -269,7 +301,7 @@ namespace Microsoft.PowerShell.SecretStore
         public static AesKey GenerateKeyFromUserName()
         {
             var key = DeriveKeyFromPassword(
-                passwordData: Encoding.UTF8.GetBytes(Environment.UserName),
+                passwordData: Encoding.UTF8.GetBytes(Utils.GetCurrentUserName()),
                 keyLength: 32);
 
             var iv = new byte[16];  // Zero IV.
@@ -398,7 +430,7 @@ namespace Microsoft.PowerShell.SecretStore
         {
             if (passWord == null)
             {
-                return Encoding.UTF8.GetBytes(Environment.UserName);
+                return Encoding.UTF8.GetBytes(Utils.GetCurrentUserName());
             }
 
             if (Utils.GetDataFromSecureString(
