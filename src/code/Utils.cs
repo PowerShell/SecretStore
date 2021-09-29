@@ -90,7 +90,7 @@ namespace Microsoft.PowerShell.SecretStore
                 catch (SecurityException) { }
             }
 
-            return Environment.UserName;
+            return origCharCasing ? Environment.UserName : Environment.UserName.ToUpper();
         }
 
         public static PSObject ConvertJsonToPSObject(string json)
