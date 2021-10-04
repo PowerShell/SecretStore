@@ -58,7 +58,19 @@ namespace Microsoft.PowerShell.SecretStore
 
         #region Methods
 
-        public static string GetCurrentUserName()
+        /// <summary>
+        /// Return current logged in user name in all upper case.
+        /// WindowsIdentity.GetCurrent().Name does not always return account user
+        /// name with correct casing (e.g., AD domain account with RunAs), and name
+        /// casing needs to be consistent for encryption.
+        /// </summary>
+        /// <param name="origCharCasing">
+        /// When true, user name is returned with char casing from system.
+        /// This is needed for backward compatibility when reading from older stores
+        /// encrypted with original character casing.
+        /// </param>
+        public static string GetCurrentUserName(
+            bool origCharCasing = false)
         {
             if (IsWindows)
             {
@@ -68,17 +80,17 @@ namespace Microsoft.PowerShell.SecretStore
                     switch (nameParts.Length)
                     {
                         case 1:
-                            return nameParts[0];
+                            return origCharCasing ? nameParts[0] : nameParts[0].ToUpper();
 
                         case 2:
                             // 'DOMAIN\UserName'
-                            return nameParts[1];
+                            return origCharCasing ? nameParts[1] : nameParts[1].ToUpper();
                     }
                 }
                 catch (SecurityException) { }
             }
 
-            return Environment.UserName;
+            return origCharCasing ? Environment.UserName : Environment.UserName.ToUpper();
         }
 
         public static PSObject ConvertJsonToPSObject(string json)
@@ -197,7 +209,7 @@ namespace Microsoft.PowerShell.SecretStore
             bool verifyPassword = false,
             string message = null)
         {
-            if (cmdlet.Host == null || cmdlet.Host.UI == null)
+            if (cmdlet.Host is null || cmdlet.Host.UI is null)
             {
                 throw new PSInvalidOperationException(
                     "Cannot prompt for password. No host available.");
@@ -298,10 +310,11 @@ namespace Microsoft.PowerShell.SecretStore
             return new AesKey(key, iv);
         }
 
-        public static AesKey GenerateKeyFromUserName()
+        public static AesKey GenerateKeyFromUserName(
+            bool useOrigUserNameCasing = false)
         {
             var key = DeriveKeyFromPassword(
-                passwordData: Encoding.UTF8.GetBytes(Utils.GetCurrentUserName()),
+                passwordData: Encoding.UTF8.GetBytes(Utils.GetCurrentUserName(useOrigUserNameCasing)),
                 keyLength: 32);
 
             var iv = new byte[16];  // Zero IV.
@@ -314,7 +327,7 @@ namespace Microsoft.PowerShell.SecretStore
             AesKey key,
             byte[] data)
         {
-            var keyToUse = DeriveAesKeyFromKeyAndPasswordOrUser(passWord, key);
+            var keyToUse = DeriveKeyFromKeyAndPasswordOrUser(passWord, key);
             try
             {
                 using (var aes = Aes.Create())
@@ -340,12 +353,102 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
-        public static byte[] DecryptWithKey(
+        /// <summary>
+        /// Decrypts data with provided key and password value.
+        /// If no password, current user name is used to derive final key.
+        /// If decryption fails, it is retried with older version of username with
+        /// original character casing.
+        /// </summary>
+        public static byte[] DecryptWithKeyWithRetry(
             SecureString passWord,
             AesKey key,
             byte[] data)
         {
-            var keyToUse = DeriveAesKeyFromKeyAndPasswordOrUser(passWord, key);
+            try
+            {
+                return DecryptWithKey(
+                    passWord,
+                    key,
+                    data,
+                    useOrigUserNameCasing: false);
+            }
+            catch (CryptographicException)
+            {
+                if (!(passWord is null))
+                {
+                    throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
+                }
+            }
+            
+            // Retry but with original user name casing.
+            // This only applies when passWord is null, and username is substituted for key derivation.
+            try
+            {
+                return DecryptWithKey(
+                    passWord,
+                    key,
+                    data,
+                    useOrigUserNameCasing: true);
+            }
+            catch (CryptographicException)
+            {
+                throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
+            }
+        }
+
+        /// <summary>
+        /// Decrypts data with no provided key, and uses current UserName to derive
+        /// the key.
+        /// UserName is converted to all upper case to ensure it is consistent.
+        /// (Workaround for bug: Windows AD account user name char casing).
+        /// If decryption fails, it is retried with older version of UserName with
+        /// original character casing.
+        /// </summary>
+        public static byte[] DecryptWithNoKeyWithRetry(
+            byte[] data)
+        {
+            var encryptKey = GenerateKeyFromUserName(useOrigUserNameCasing: false);
+            try
+            {
+                return DecryptWithKey(
+                    passWord: null,
+                    key: encryptKey,
+                    data: data,
+                    useOrigUserNameCasing: false);
+            }
+            catch (CryptographicException) { }
+            finally
+            {
+                encryptKey.Clear();
+            }
+
+            // Retry but with original user name casing.
+            encryptKey = GenerateKeyFromUserName(useOrigUserNameCasing: true);
+            try
+            {
+                return DecryptWithKey(
+                    passWord: null,
+                    key: encryptKey,
+                    data: data,
+                    useOrigUserNameCasing: true);
+            }
+            finally
+            {
+                encryptKey.Clear();
+            }
+        }
+
+        /// <summary>
+        /// Decrypt data key and password value.
+        /// If no password, then current user name is used to derive final key.
+        /// </summary>
+        private static byte[] DecryptWithKey(
+            SecureString passWord,
+            AesKey key,
+            byte[] data,
+            bool useOrigUserNameCasing = false)
+        {
+            var keyToUse = DeriveKeyFromKeyAndPasswordOrUser(passWord, key, useOrigUserNameCasing);
             try
             {
                 using (var aes = Aes.Create())
@@ -358,14 +461,7 @@ namespace Microsoft.PowerShell.SecretStore
                     {
                         using (var cryptoStream = new CryptoStream(sourceStream, decryptor, CryptoStreamMode.Read))
                         {
-                            try
-                            {
-                                cryptoStream.CopyTo(targetStream);
-                            }
-                            catch (CryptographicException)
-                            {
-                                throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
-                            }
+                            cryptoStream.CopyTo(targetStream);
                         }
 
                         return targetStream.ToArray();
@@ -393,18 +489,41 @@ namespace Microsoft.PowerShell.SecretStore
             }
         }
 
+        /// <summary>
+        /// Validates provided data blob with the provide hash value.
+        /// Hash is computed with a key derived from the provided password, or
+        /// the current UserName if no password.
+        /// UserName is returned in all upper case to ensure consistency.
+        /// (Workaround for bug: Windows AD account user name char casing).
+        /// If validation fails, it is retried with older version of UserName with
+        /// original character casing.
+        /// </summary>
         public static bool ValidateHashWithPasswordOrUser(
             SecureString passWord,
             byte[] hash,
             byte[] dataToValidate)
         {
-            var keyToUse = DeriveKeyFromPasswordOrUser(passWord);
+            var keyToUse = DeriveKeyFromPasswordOrUser(passWord, useOrigUserNameCasing: false);
             try
             {
-                return ValidateHash(
+                bool isValid = ValidateHash(
                     key: keyToUse,
                     hashToCompare: hash,
                     dataToValidate: dataToValidate);
+
+                if (!isValid && passWord is null)
+                {
+                    // Try again but with original user name character casing,
+                    // in case this is older encrypted data.
+                    ZeroOutData(keyToUse);
+                    keyToUse = DeriveKeyFromPasswordOrUser(passWord, useOrigUserNameCasing: true);
+                    isValid = ValidateHash(
+                        key: keyToUse,
+                        hashToCompare: hash,
+                        dataToValidate: dataToValidate);
+                }
+
+                return isValid;
             }
             finally
             {
@@ -414,7 +533,7 @@ namespace Microsoft.PowerShell.SecretStore
 
         public static void ZeroOutData(byte[] data)
         {
-            if (data == null) { return; }
+            if (data is null) { return; }
             for (int i = 0; i < data.Length; i++)
             {
                 data[i] = 0;
@@ -426,11 +545,13 @@ namespace Microsoft.PowerShell.SecretStore
         #region Private methods
 
         private static byte[] GetPasswordOrUserData(
-            SecureString passWord)
+            SecureString passWord,
+            bool useOrigUserNameCasing = false)
         {
-            if (passWord == null)
+            if (passWord is null)
             {
-                return Encoding.UTF8.GetBytes(Utils.GetCurrentUserName());
+                return Encoding.UTF8.GetBytes(
+                    Utils.GetCurrentUserName(useOrigUserNameCasing));
             }
 
             if (Utils.GetDataFromSecureString(
@@ -443,11 +564,12 @@ namespace Microsoft.PowerShell.SecretStore
             throw new PSInvalidOperationException("Unable to read password data from SecureString.");
         }
 
-        private static AesKey DeriveAesKeyFromKeyAndPasswordOrUser(
+        private static AesKey DeriveKeyFromKeyAndPasswordOrUser(
             SecureString passWord,
-            AesKey key)
+            AesKey key,
+            bool useOrigUserNameCasing = false)
         {            
-            var passWordData = GetPasswordOrUserData(passWord);
+            var passWordData = GetPasswordOrUserData(passWord, useOrigUserNameCasing);
             try
             {
                 byte[] newKey;
@@ -479,10 +601,11 @@ namespace Microsoft.PowerShell.SecretStore
         }
 
         private static byte[] DeriveKeyFromPasswordOrUser(
-            SecureString passWord)
+            SecureString passWord,
+            bool useOrigUserNameCasing = false)
         {
             // Create hash key with either provided password or current user name.
-            var passWordData = GetPasswordOrUserData(passWord);
+            var passWordData = GetPasswordOrUserData(passWord, useOrigUserNameCasing);
             return DeriveKeyFromPassword(
                 passwordData: passWordData,
                 keyLength: 64);
@@ -677,7 +800,7 @@ namespace Microsoft.PowerShell.SecretStore
         private void ConvertFromJson(string json)
         {
             dynamic configDataObj = (Utils.ConvertJsonToPSObject(json));
-            if (configDataObj == null)
+            if (configDataObj is null)
             {
                 throw new InvalidDataException("Unable to read store configuration json data.");
             }
@@ -1009,7 +1132,7 @@ namespace Microsoft.PowerShell.SecretStore
             dynamic data = Utils.ConvertJsonToPSObject(json);
 
             // Validate
-            if (data == null)
+            if (data is null)
             {
                 throw new InvalidDataException("Unable to read store json meta data.");
             }
@@ -1087,7 +1210,7 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 lock (_syncObject)
                 {
-                    if (ConfigData.PasswordRequired && (_password == null))
+                    if (ConfigData.PasswordRequired && (_password is null))
                     {
                         throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
                     }
@@ -1328,7 +1451,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             
             // Decrypt blob
-            blob = CryptoUtils.DecryptWithKey(
+            blob = CryptoUtils.DecryptWithKeyWithRetry(
                 passWord: password,
                 key: key,
                 data: encryptedBlob);
@@ -1458,7 +1581,7 @@ namespace Microsoft.PowerShell.SecretStore
                             verifyPassword: true,
                             message: "A password is now required for the local store configuration.\nTo complete the change please provide new password.");
                         
-                        if (newPassword == null)
+                        if (newPassword is null)
                         {
                             throw new PSInvalidOperationException("New password was not provided.");
                         }
@@ -1473,7 +1596,7 @@ namespace Microsoft.PowerShell.SecretStore
                             verifyPassword: false,
                             message: "A password is no longer required for the local store configuration.\nTo complete the change please provide the current password.");
 
-                        if (oldPassword == null)
+                        if (oldPassword is null)
                         {
                             throw new PSInvalidOperationException("Old password was not provided.");
                         }
@@ -1614,7 +1737,7 @@ namespace Microsoft.PowerShell.SecretStore
             {
                 var oldBlobItem = new byte[metaItem.Size];
                 Buffer.BlockCopy(blob, metaItem.Offset, oldBlobItem, 0, metaItem.Size);
-                var decryptedBlobItem = CryptoUtils.DecryptWithKey(
+                var decryptedBlobItem = CryptoUtils.DecryptWithKeyWithRetry(
                     passWord: oldPassword,
                     key: key,
                     data: oldBlobItem);
@@ -1788,7 +1911,7 @@ namespace Microsoft.PowerShell.SecretStore
             }
             
             // Enforce required password configuration.
-            if (configData.PasswordRequired && (password == null))
+            if (configData.PasswordRequired && (password is null))
             {
                 throw new PasswordRequiredException(Utils.PasswordRequiredMessage);
             }
@@ -2275,7 +2398,7 @@ namespace Microsoft.PowerShell.SecretStore
 
             } while (++count < 4);
 
-            if (hash == null || fileDataBlob == null)
+            if (hash is null || fileDataBlob is null)
             {
                 errorMsg = string.Format(
                     CultureInfo.InvariantCulture,
@@ -2317,7 +2440,7 @@ namespace Microsoft.PowerShell.SecretStore
             index += jsonBlobSize;
 
             var jsonStr = Encoding.UTF8.GetString(
-                CryptoUtils.DecryptWithKey(
+                CryptoUtils.DecryptWithKeyWithRetry(
                     passWord: password,
                     key: key,
                     data: jsonBlob));
@@ -2447,7 +2570,7 @@ namespace Microsoft.PowerShell.SecretStore
                 System.Threading.Thread.Sleep(250);
             } while (++count < 4);
 
-            if (encryptedConfigJson == null)
+            if (encryptedConfigJson is null)
             {
                 errorMsg = string.Format(
                     CultureInfo.InvariantCulture,
@@ -2458,12 +2581,8 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Decrypt config json data.
-            var encryptKey = CryptoUtils.GenerateKeyFromUserName();
-            var configJsonBlob = CryptoUtils.DecryptWithKey(
-                passWord: null,
-                key: encryptKey,
+            var configJsonBlob = CryptoUtils.DecryptWithNoKeyWithRetry(
                 data: encryptedConfigJson);
-            encryptKey.Clear();
 
             var configJson = Encoding.UTF8.GetString(configJsonBlob);
             configData = new SecureStoreConfig(configJson);
@@ -2621,7 +2740,7 @@ namespace Microsoft.PowerShell.SecretStore
                 System.Threading.Thread.Sleep(250);
             } while (++count < 4);
 
-            if (encryptedDataBlob == null)
+            if (encryptedDataBlob is null)
             {
                 errorMsg = string.Format(
                     CultureInfo.InvariantCulture,
@@ -2632,12 +2751,8 @@ namespace Microsoft.PowerShell.SecretStore
             }
 
             // Decrypt data.
-            var fileEncryptKey = CryptoUtils.GenerateKeyFromUserName();
-            var dataBlob = CryptoUtils.DecryptWithKey(
-                passWord: null,
-                key: fileEncryptKey,
+            var dataBlob = CryptoUtils.DecryptWithNoKeyWithRetry(
                 data: encryptedDataBlob);
-            fileEncryptKey.Clear();
 
             var intSize = sizeof(Int32);
             byte[] intField = new byte[intSize];
@@ -3007,11 +3122,11 @@ namespace Microsoft.PowerShell.SecretStore
                 Reset();
             }
 
-            if (LocalStore == null)
+            if (LocalStore is null)
             {
                 lock (SyncObject)
                 {
-                    if (LocalStore == null)
+                    if (LocalStore is null)
                     {
                         try
                         {

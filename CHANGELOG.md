@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.0.5 - 2021-10-5
+
+### Fixes
+
+- Fix for Windows platform UserName character casing bug (Issue #62).
+
+### Changes
+
+### New Features
+
 ## 1.0.4 - 2021-8-30
 
 ### Fixes
