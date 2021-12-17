@@ -114,6 +114,8 @@ stages:
         parameters:
           BuildDropPath: $(signOutPath)
           Build_Repository_Uri: 'https://github.com/powershell/secretstore'
+          PackageName: 'Microsoft.PowerShell.SecretStore'
+          PackageVersion: '1.0.5'
 
     - pwsh: |
         $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
