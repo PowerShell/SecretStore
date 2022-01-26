@@ -29,15 +29,41 @@ function DoBuild
     Write-Verbose -Verbose -Message "Copying help files to '$BuildOutPath'"
     copy-item -Recurse "${HelpPath}/${Culture}" "$BuildOutPath"
 
+    # Copy license
+    Write-Verbose -Verbose -Message "Copying LICENSE file to '$BuildOutPath'"
+    Copy-Item -Path "./LICENSE" -Dest "$BuildOutPath"
+
+    # Copy notice
+    Write-Verbose -Verbose -Message "Copying ThirdPartyNotices.txt to '$BuildOutPath'"
+    Copy-Item -Path "./ThirdPartyNotices.txt" -Dest "$BuildOutPath"
+
     if ( Test-Path "${SrcPath}/code" ) {
         Write-Verbose -Verbose -Message "Building assembly and copying to '$BuildOutPath'"
         # build code and place it in the staging location
         Push-Location "${SrcPath}/code"
         try {
+            # Get dotnet.exe command path.
+            $dotnetCommand = Get-Command -Name 'dotnet' -ErrorAction Ignore
+
+            # Check for dotnet for Windows (we only build on Windows platforms).
+            if ($null -eq $dotnetCommand) {
+                Write-Verbose -Verbose -Message "dotnet.exe cannot be found in current path. Looking in ProgramFiles path."
+                $dotnetCommandPath = Join-Path -Path $env:ProgramFiles -ChildPath "dotnet\dotnet.exe"
+                $dotnetCommand = Get-Command -Name $dotnetCommandPath -ErrorAction Ignore
+                if ($null -eq $dotnetCommand) {
+                    throw "Dotnet.exe cannot be found: $dotnetCommandPath is unavailable for build."
+                }
+            }
+
+            Write-Verbose -Verbose -Message "dotnet.exe command found in path: $($dotnetCommand.Path)"
+
+            # Check dotnet version
+            Write-Verbose -Verbose -Message "DotNet version: $(& ($dotnetCommand) --version)"
+
             # Build source
             Write-Verbose -Verbose -Message "Building with configuration: $BuildConfiguration, framework: $BuildFramework"
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
-            dotnet publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
+            & ($dotnetCommand) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
 
             # Place build results
             if (! (Test-Path -Path "$BuildSrcPath/${ModuleName}.dll"))
@@ -56,6 +82,9 @@ function DoBuild
 
             Write-Verbose -Verbose "$BuildSrcPath/System.IO.FileSystem.AccessControl.dll to $BuildOutPath"
             Copy-Item -Path "$BuildSrcPath/System.IO.FileSystem.AccessControl.dll" -Dest "$BuildOutPath"
+
+            Write-Verbose -Verbose "$BuildSrcPath/System.Runtime.InteropServices.RuntimeInformation.dll to $BuildOutPath"
+            Copy-Item -Path "$BuildSrcPath/System.Runtime.InteropServices.RuntimeInformation.dll" -Dest "$BuildOutPath"
         }
         catch {
             # Write-Error "dotnet build failed with error: $_"
