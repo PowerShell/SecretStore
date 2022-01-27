@@ -87,8 +87,8 @@ function DoBuild
             Copy-Item -Path "$BuildSrcPath/System.Runtime.InteropServices.RuntimeInformation.dll" -Dest "$BuildOutPath"
         }
         catch {
-            # Write-Error "dotnet build failed with error: $_"
             Write-Verbose -Verbose -Message "dotnet build failed with error: $_"
+            Write-Error "dotnet build failed with error: $_"
         }
         finally {
             Pop-Location
