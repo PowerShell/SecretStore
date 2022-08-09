@@ -1,6 +1,6 @@
 # PowerShell SecretStore module
 
-This module is an extension vault for the PowerShell SecretManagement module.
+This module is an extension vault for the [PowerShell SecretManagement](https://github.com/PowerShell/SecretManagement) module.
 It stores secrets locally on file for the current user account context, and uses .NET crypto APIs to encrypt file contents.
 Secrets remain encrypted in-memory, and are only decrypted when retrieved and passed to the user.
 This module works over all supported PowerShell platforms on Windows, Linux, and macOS.
