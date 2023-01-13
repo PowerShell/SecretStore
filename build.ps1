@@ -20,19 +20,6 @@ param (
     [switch]
     $Signed,
 
-    [Parameter(ParameterSetName="build")]
-    [switch]
-    $Test,
-
-    [Parameter(ParameterSetName="build")]
-    [string[]]
-    [ValidateSet("Functional","StaticAnalysis")]
-    $TestType = @("Functional"),
-
-    [Parameter(ParameterSetName="help")]
-    [switch]
-    $UpdateHelp,
-
     [ValidateSet("Debug", "Release")]
     [string] $BuildConfiguration = "Debug",
 
@@ -40,11 +27,9 @@ param (
     [string] $BuildFramework = "net461"
 )
 
-if ( ! (Get-Module -ErrorAction SilentlyContinue PSPackageProject -ListAvailable)) {
-    Install-Module -Name PSPackageProject -MinimumVersion 0.1.17 -Force
-}
+Import-Module -Name "$PSScriptRoot/buildtools.psd1" -Force
 
-$config = Get-PSPackageProjectConfiguration -ConfigPath $PSScriptRoot
+$config = Get-BuildConfiguration -ConfigPath $PSScriptRoot
 
 $script:ModuleName = $config.ModuleName
 $script:SrcPath = $config.SourcePath
@@ -100,18 +85,10 @@ else
 if ($Build.IsPresent)
 {
     $sb = (Get-Item Function:DoBuild).ScriptBlock
-    Invoke-PSPackageProjectBuild -BuildScript $sb -SkipPublish
+    Invoke-ModuleBuild -BuildScript $sb
 }
 
 if ($Publish.IsPresent)
 {
-    Invoke-PSPackageProjectPublish -Signed:$Signed.IsPresent -AllowPreReleaseDependencies
-}
-
-if ( $Test.IsPresent ) {
-    Invoke-PSPackageProjectTest -Type $TestType
-}
-
-if ($UpdateHelp.IsPresent) {
-    Add-PSPackageProjectCmdletHelp -ProjectRoot $ModuleRoot -ModuleName $ModuleName -Culture $Culture
+    Publish-ModulePackage -Signed:$Signed.IsPresent
 }
