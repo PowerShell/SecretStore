@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 $ConfigurationFileName = 'package.config.json'
-Import-Module -Name PowerShellGet -MinimumVersion 3.0.18
+Import-Module -Name PowerShellGet -MinimumVersion 3.0.19
 
 function Get-BuildConfiguration {
     [CmdletBinding()]
@@ -86,7 +86,7 @@ function Publish-ModulePackage
     } else {
         $modulePath = Join-Path -Path $config.SignedOutputPath -ChildPath $config.ModuleName
     }
-    Publish-PSResource -Path $modulePath -Repository $localRepoName -SkipDependenciesCheck -Confirm:$false -Verbose
+    Publish-PSResource -Path $modulePath -Repository $localRepoName -SkipDependenciesCheck -SkipModuleManifestValidate -Confirm:$false -Verbose
 
     if ($env:TF_BUILD) {
         Write-Verbose -Verbose -Message "Uploading module nuget package artifact to AzDevOps"
