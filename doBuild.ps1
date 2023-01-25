@@ -61,9 +61,10 @@ function DoBuild
             Write-Verbose -Verbose -Message "DotNet version: $(& ($dotnetCommand) --version)"
 
             # Build source
-            Write-Verbose -Verbose -Message "Building with configuration: $BuildConfiguration, framework: $BuildFramework"
             Write-Verbose -Verbose -Message "Building location: PSScriptRoot: $PSScriptRoot, PWD: $pwd"
-            & ($dotnetCommand) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath
+            $buildCommand = "$($dotnetCommand.Name) publish --configuration $BuildConfiguration --framework $BuildFramework --output $BuildSrcPath"
+            Write-Verbose -Verbose -Message "Starting dotnet build command: $buildCommand"
+            Invoke-Expression -Command $buildCommand
 
             # Place build results
             if (! (Test-Path -Path "$BuildSrcPath/${ModuleName}.dll"))
