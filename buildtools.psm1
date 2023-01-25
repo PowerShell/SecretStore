@@ -119,10 +119,6 @@ function Install-ModulePackageForTest {
         $null = New-Item -Path $installationPath -ItemType Directory -Verbose
     }
 
-    $SecretManagementMod = 'Microsoft.PowerShell.SecretManagement'
-    Write-Verbose -Verbose -Message "Installing module $SecretManagementMod  to build output path $installationPath"
-    Save-PSResource -Name $SecretManagementMod -Repository PSGallery -Path $installationPath -SkipDependencyCheck -TrustRepository -Confirm:$false
-
     Write-Verbose -Verbose -Message "Installing module $($config.ModuleName) to build output path $installationPath"
     Save-PSResource -Name $config.ModuleName -Repository $localRepoName -Path $installationPath -SkipDependencyCheck -Prerelease -Confirm:$false
 

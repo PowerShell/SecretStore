@@ -41,7 +41,9 @@ jobs:
       Save-Module -Name PowerShellGet -Path $modulePath -MinimumVersion 3.0.19-beta19 -AllowPrerelease -Force
       Write-Verbose -Verbose "Install Pester 4.X to temp module path"
       Save-Module -Name "Pester" -MaximumVersion 4.99 -Path $modulePath -Force
-    displayName: Install PowerShellGetV3 and Pester
+      Write-Verbose -Verbose "Install Microsoft.PowerShell.SecretManagement to temp module path"
+      Save-Module -Name "Microsoft.PowerShell.SecretManagement" -Path $modulePath -Force
+    displayName: Install PowerShellGetV3, Pester, and SecretManagment
 
   - ${{ parameters.powershellExecutable }}: |
       $modulePath = Join-Path -Path $env:AGENT_TEMPDIRECTORY -ChildPath 'TempModules'
