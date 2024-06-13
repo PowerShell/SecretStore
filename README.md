@@ -76,3 +76,11 @@ It takes no parameters and can only be used interactively, as it prompts the use
 This cmdlet deletes all data in the SecretStore, and updates the configuration.
 If no configuration parameters are specified, the default settings will be used.  
 This cmdlet is intended for cases where the password is forgotten, or store files become corrupt and SecretStore is unusable.
+
+## Code of Conduct
+
+Please see our [Code of Conduct](.github/CODE_OF_CONDUCT.md) before participating in this project.
+
+## Security Policy
+
+For any security issues, please see our [Security Policy](.github/SECURITY.md).
