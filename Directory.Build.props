@@ -1,0 +1,7 @@
+<Project>
+  <!-- See https://aka.ms/dotnet/msbuild/customize for more details on customizing your build -->
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ModuleVersion>1.0.6</ModuleVersion>
+  </PropertyGroup>
+</Project>

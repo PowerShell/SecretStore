@@ -11,10 +11,10 @@ NestedModules = @('.\Microsoft.PowerShell.SecretStore.Extension')
 RequiredModules = @('Microsoft.PowerShell.SecretManagement')
 
 # Version number of this module.
-ModuleVersion = '1.0.6'
+ModuleVersion = '{{ModuleVersion}}'
 
 # Supported PSEditions
-CompatiblePSEditions = @('Core')
+CompatiblePSEditions = @('Desktop', 'Core')
 
 # ID used to uniquely identify this module
 GUID = '6b983e67-c297-431a-916c-f4ce24dd7bac'
@@ -36,7 +36,7 @@ account context. The secrets are encrypted on file using .NET Crypto APIs. A pas
 in the default configuration. The configuration can be changed with the provided cmdlets.
 
 Go to GitHub for more information about this module and to submit issues:
-https://github.com/powershell/SecretStore
+https://github.com/PowerShell/SecretStore
 "
 
 # Minimum version of the PowerShell engine required by this module
@@ -58,10 +58,10 @@ PrivateData = @{
         Tags = @('SecretManagement')
 
         # A URL to the license for this module.
-        LicenseUri = 'https://github.com/PowerShell/SecretStore/blob/master/LICENSE'
+        LicenseUri = 'https://github.com/PowerShell/SecretStore/blob/main/LICENSE'
 
         # A URL to the main website for this project.
-        ProjectUri = 'https://github.com/powershell/secretstore'
+        ProjectUri = 'https://github.com/PowerShell/SecretStore'
 
         # A URL to an icon representing this module.
         # IconUri = ''
