@@ -1,0 +1,60 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  merge_group:
+    types: [ checks_requested ]
+
+jobs:
+  ci:
+    name: pester
+    strategy:
+      matrix:
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_GENERATE_ASPNET_CERTIFICATE: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+          dotnet-version: 8.x
+
+      - name: Install PSResources
+        run: ./tools/installPSResources.ps1
+        shell: pwsh
+
+      - name: Build and test
+        run: Invoke-Build -Configuration Release -Task Build, Package, Test
+        shell: pwsh
+
+      - name: Test Windows PowerShell
+        run: |
+           Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+           Install-Module Microsoft.PowerShell.SecretManagement -Scope CurrentUser -Force -SkipPublisherCheck
+           Invoke-Pester Test
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SecretStore-package-${{ matrix.os }}
+          path: out/**/*.nupkg
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SecretStore-tests-${{ matrix.os }}
+          path: testResults.xml

@@ -1,151 +1,115 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
-
+Describe "Test Microsoft.PowerShell.SecretStore module" {
     BeforeAll {
-
-        if (($IsWindows -eq $true) -or ($PSVersionTable.PSVersion.Major -eq 5)) {
-            $IsWindowsPlatform = $true
-        }
-        else {
-            $IsWindowsPlatform = $false;
-        }
-
-        if ((Get-Module -Name Microsoft.PowerShell.SecretManagement -ErrorAction Ignore) -eq $null)
-        {
-            Import-Module -Name Microsoft.PowerShell.SecretManagement
-        }
-
-        if ((Get-Module -Name Microsoft.PowerShell.SecretStore -ErrorAction Ignore) -eq $null)
-        {
-            Import-Module -Name Microsoft.PowerShell.SecretStore
-        }
-
-        <#
-        $choices = @(
-            [System.Management.Automation.Host.ChoiceDescription]::new('Yes'),
-            [System.Management.Automation.Host.ChoiceDescription]::new('No'))
-        $choice = $host.UI.PromptForChoice(
-            "!!! These tests will remove all secrets in the store for the current user !!!",
-            "Type 'Yes' to continue",
-            $choices,
-            1)
-        if ($choice -eq 1)
-        {
-            # User choosed not to run tests
-            throw 'Tests aborted'
-        }
-        #>
+        Import-Module -Force -Name Microsoft.PowerShell.SecretManagement
+        Import-Module -Force -Name $PSScriptRoot/../module/Microsoft.PowerShell.SecretStore.psd1
 
         # Reset the SecretStore and configure it for no-password access
         # This deletes all SecretStore data!!
-        Write-Warning "!!! These tests will remove all secrets in the store for the current user !!!"
         Reset-SecretStore -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Force
-        $null = Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Confirm:$false
+        Set-SecretStoreConfiguration -Scope CurrentUser -Authentication None -PasswordTimeout -1 -Interaction None -Confirm:$false
     }
 
-    Context "SecretStore file permission tests" {
+    AfterAll {
+        Remove-Module -Name Microsoft.PowerShell.SecretStore -Force -ErrorAction Ignore
+        Remove-Module -Name Microsoft.PowerShell.SecretManagement -Force -ErrorAction Ignore
+    }
 
+    Context "Windows SecretStore file permission tests" -Skip:($IsLinux -or $IsMacOS) {
         BeforeAll {
-            if ($IsWindowsPlatform)
-            {
-                $storePath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
-                $storePath = Join-Path -Path $storePath -ChildPath 'Microsoft\PowerShell\secretmanagement\localstore'
-                $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
-                $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
-                $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
-            }
-            else
-            {
-                $storePath = Join-Path -Path "$home" -ChildPath '.secretmanagement/localstore'
-                $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
-                $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
-                $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
-            }
+            $storePath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)
+            $storePath = Join-Path -Path $storePath -ChildPath 'Microsoft\PowerShell\secretmanagement\localstore'
+            $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
+            $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+            $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
         }
 
-        if ($IsWindowsPlatform)
-        {
-            It "Verifies SecretStore directory ACLs" {
-                $acl = Get-Acl $storePath
-                $acl.Access | Should -HaveCount 1
-                $accessRule = $acl.Access[0]
+        It "Verifies SecretStore directory ACLs" {
+            $acl = Get-Acl $storePath
+            $acl.Access | Should -HaveCount 1
+            $accessRule = $acl.Access[0]
 
-                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
-                $accessRule.AccessControlType | Should -BeExactly 'Allow'
-                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
-                $accessRule.IsInherited | Should -BeFalse
-                $accessRule.InheritanceFlags | Should -BeExactly 'ContainerInherit, ObjectInherit'
-                $accessRule.PropagationFlags | Should -BeExactly 'None'
-            }
-
-            It "Verifies SecretStore configuration file ACLs" {
-                $acl = Get-Acl $storeConfigFilePath
-                $acl.Access | Should -HaveCount 1
-                $accessRule = $acl.Access[0]
-
-                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
-                $accessRule.AccessControlType | Should -BeExactly 'Allow'
-                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
-                $accessRule.IsInherited | Should -BeTrue
-                $accessRule.InheritanceFlags | Should -BeExactly 'None'
-                $accessRule.PropagationFlags | Should -BeExactly 'None'
-            }
-
-            It "Verifies SecretStore file ACLs" {
-                $acl = Get-Acl $storeFilePath
-                $acl.Access | Should -HaveCount 1
-                $accessRule = $acl.Access[0]
-
-                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
-                $accessRule.AccessControlType | Should -BeExactly 'Allow'
-                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
-                $accessRule.IsInherited | Should -BeTrue
-                $accessRule.InheritanceFlags | Should -BeExactly 'None'
-                $accessRule.PropagationFlags | Should -BeExactly 'None'
-            }
-
-            It "Verifies SecretStore key file ACLs" {
-                $acl = Get-Acl $storeKeyFilePath
-                $acl.Access | Should -HaveCount 1
-                $accessRule = $acl.Access[0]
-
-                $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
-                $accessRule.AccessControlType | Should -BeExactly 'Allow'
-                $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
-                $accessRule.IsInherited | Should -BeTrue
-                $accessRule.InheritanceFlags | Should -BeExactly 'None'
-                $accessRule.PropagationFlags | Should -BeExactly 'None'
-            }
+            $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+            $accessRule.AccessControlType | Should -BeExactly 'Allow'
+            $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+            $accessRule.IsInherited | Should -BeFalse
+            $accessRule.InheritanceFlags | Should -BeExactly 'ContainerInherit, ObjectInherit'
+            $accessRule.PropagationFlags | Should -BeExactly 'None'
         }
-        else
-        {
-            # drwx------ 2 <user> <user> 4096 Jun 30 16:03 <path>
-            It "Verifies SecretStore directory permissions" {
-                $permissions = (ls -ld "$storePath").Split(' ')
-                $permissions[0] | Should -BeExactly 'drwx------'
-            }
 
-            It "Verfies SecretStore configuration file permissions" {
-                $permissions = (ls -ld "$storeConfigFilePath").Split(' ')
-                $permissions[0] | Should -BeExactly '-rw-------'
-            }
+        It "Verifies SecretStore configuration file ACLs" {
+            $acl = Get-Acl $storeConfigFilePath
+            $acl.Access | Should -HaveCount 1
+            $accessRule = $acl.Access[0]
 
-            It "Verifes SecretStore file permissions" {
-                $permissions = (ls -ld "$storeFilePath").Split(' ')
-                $permissions[0] | Should -BeExactly '-rw-------'
-            }
+            $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+            $accessRule.AccessControlType | Should -BeExactly 'Allow'
+            $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+            $accessRule.IsInherited | Should -BeTrue
+            $accessRule.InheritanceFlags | Should -BeExactly 'None'
+            $accessRule.PropagationFlags | Should -BeExactly 'None'
+        }
 
-            It "Verifes SecretStore key file permissions" {
-                $permissions = (ls -ld "$storeKeyFilePath").Split(' ')
-                $permissions[0] | Should -BeExactly '-rw-------'
-            }
+        It "Verifies SecretStore file ACLs" {
+            $acl = Get-Acl $storeFilePath
+            $acl.Access | Should -HaveCount 1
+            $accessRule = $acl.Access[0]
+
+            $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+            $accessRule.AccessControlType | Should -BeExactly 'Allow'
+            $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+            $accessRule.IsInherited | Should -BeTrue
+            $accessRule.InheritanceFlags | Should -BeExactly 'None'
+            $accessRule.PropagationFlags | Should -BeExactly 'None'
+        }
+
+        It "Verifies SecretStore key file ACLs" {
+            $acl = Get-Acl $storeKeyFilePath
+            $acl.Access | Should -HaveCount 1
+            $accessRule = $acl.Access[0]
+
+            $accessRule.FileSystemRights | Should -BeExactly 'FullControl'
+            $accessRule.AccessControlType | Should -BeExactly 'Allow'
+            $accessRule.IdentityReference | Should -BeExactly ([System.Security.Principal.WindowsIdentity]::GetCurrent()).Name
+            $accessRule.IsInherited | Should -BeTrue
+            $accessRule.InheritanceFlags | Should -BeExactly 'None'
+            $accessRule.PropagationFlags | Should -BeExactly 'None'
+        }
+    }
+
+    Context "Linux and macOS file permission tests" -Skip:((-not $IsLinux) -and (-not $IsMacOS)) {
+        BeforeAll {
+            $storePath = Join-Path -Path "$home" -ChildPath '.secretmanagement/localstore'
+            $storeConfigFilePath = Join-Path -Path $storePath -ChildPath 'storeconfig'
+            $storeFilePath = Join-Path -Path $storePath -ChildPath 'storefile'
+            $storeKeyFilePath = Join-Path -Path $storePath -ChildPath 'storeaux'
+        }
+
+        # drwx------ 2 <user> <user> 4096 Jun 30 16:03 <path>
+        It "Verifies SecretStore directory permissions" {
+            $permissions = (ls -ld "$storePath").Split(' ')
+            $permissions[0] | Should -BeExactly 'drwx------'
+        }
+
+        It "Verfies SecretStore configuration file permissions" {
+            $permissions = (ls -ld "$storeConfigFilePath").Split(' ')
+            $permissions[0] | Should -BeExactly '-rw-------'
+        }
+
+        It "Verifes SecretStore file permissions" {
+            $permissions = (ls -ld "$storeFilePath").Split(' ')
+            $permissions[0] | Should -BeExactly '-rw-------'
+        }
+
+        It "Verifes SecretStore key file permissions" {
+            $permissions = (ls -ld "$storeKeyFilePath").Split(' ')
+            $permissions[0] | Should -BeExactly '-rw-------'
         }
     }
 
     Context "SecretStore Vault cmdlet tests" {
-
         It "Verifies SecretStore configuration for tests" {
             $config = Get-SecretStoreConfiguration
             $config.Scope | Should -BeExactly "CurrentUser"
@@ -166,9 +130,10 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
     # Setting and retrieving additional metadata.
     Context "SecretStore metadata function" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $secretContent = "TestStoreString"
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $secretContent = "TestStoreString"
+        }
 
         It "Verifies writing metadata along with secret content" {
             $errorMsg = ""
@@ -180,7 +145,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
 
             $success | Should -BeTrue
             $errorMsg | Should -BeNullOrEmpty
-            #
+
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -200,7 +165,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
                 [ref] $errorMsg)
             $success | Should -BeTrue
             $errorMsg | Should -BeNullOrEmpty
-            #
+
             $outInfo = $null
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().EnumerateObjectInfo(
                 $secretName,
@@ -241,10 +206,11 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     }
 
     Context "SecretStore Vault Byte[] type" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("TestBytesStringToTest")
-        $errorMsg = ""
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $bytesToWrite = [System.Text.Encoding]::UTF8.GetBytes("TestBytesStringToTest")
+            $errorMsg = ""
+        }
 
         It "Verifies byte[] write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
@@ -300,10 +266,11 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     }
 
     Context "SecretStore Vault String type" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $stringToWrite = "TestStoreString"
-        $errorMsg = ""
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $stringToWrite = "TestStoreString"
+            $errorMsg = ""
+        }
 
         It "Verifes String write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
@@ -359,11 +326,12 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     }
 
     Context "SecretStore Vault SecureString type" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-        $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
-        $errorMsg = ""
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecret = [System.IO.Path]::GetRandomFileName()
+            $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+            $errorMsg = ""
+        }
 
         It "Verifies SecureString write to SecretStore" {
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
@@ -420,10 +388,11 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     }
 
     Context "SecretStore Vault PSCredential type" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecret = [System.IO.Path]::GetRandomFileName()
-        $errorMsg = ""
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecret = [System.IO.Path]::GetRandomFileName()
+            $errorMsg = ""
+        }
 
         It "Verifies PSCredential type write to SecretStore" {
             $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
@@ -482,11 +451,12 @@ Describe "Test Microsoft.PowerShell.SecretStore module" -tags CI {
     }
 
     Context "SecretStore Vault Hashtable type" {
-
-        $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
-        $randomSecretA = [System.IO.Path]::GetRandomFileName()
-        $randomSecretB = [System.IO.Path]::GetRandomFileName()
-        $errorMsg = ""
+        BeforeAll {
+            $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
+            $randomSecretA = [System.IO.Path]::GetRandomFileName()
+            $randomSecretB = [System.IO.Path]::GetRandomFileName()
+            $errorMsg = ""
+        }
 
         It "Verifies Hashtable type write to SecretStore" {
             $ht = @{
