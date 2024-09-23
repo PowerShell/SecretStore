@@ -12,3 +12,4 @@ if ($PSRepository -eq "CFS" -and -not (Get-PSResourceRepository -Name CFS -Error
 Install-PSResource -Repository $PSRepository -TrustRepository -Name InvokeBuild
 Install-PSResource -Repository $PSRepository -TrustRepository -Name platyPS
 Install-PSResource -Repository $PSRepository -TrustRepository -Name Pester
+Install-PSResource -Repository $PSRepository -TrustRepository -Name Microsoft.PowerShell.SecretManagement
