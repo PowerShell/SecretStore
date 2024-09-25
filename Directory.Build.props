@@ -3,5 +3,6 @@
   <PropertyGroup>
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <ModuleVersion>1.0.6</ModuleVersion>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 </Project>
