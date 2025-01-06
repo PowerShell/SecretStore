@@ -76,7 +76,7 @@ function Get-SecretInfo
             {
                 Write-Output $outSecretInfo
             }
-            
+
             break
         }
         catch [Microsoft.PowerShell.SecretManagement.PasswordRequiredException]
@@ -278,7 +278,7 @@ function Unlock-SecretVault
         [hashtable] $AdditionalParameters
     )
 
-    $errorMsg = ""    
+    $errorMsg = ""
     if (! [Microsoft.PowerShell.SecretStore.LocalSecretStore]::UnlockVault($Password, [ref] $errorMsg))
     {
         $Msg = "$VaultName Vault Unlock operation failed with error: $errorMsg"
