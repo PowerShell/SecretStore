@@ -73,7 +73,7 @@ task Package {
 }
 
 task Test {
-    Invoke-Pester -CI -Output Diagnostic
+    Invoke-Pester -CI
 }
 
 task Build BuildModule, BuildDocs
