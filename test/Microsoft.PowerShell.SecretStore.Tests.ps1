@@ -1,9 +1,6 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'Tests create SecureStrings from known test data')]
-param()
-
 Describe "Test Microsoft.PowerShell.SecretStore module" {
     BeforeAll {
         Import-Module -Force -Name Microsoft.PowerShell.SecretManagement
@@ -126,7 +123,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" {
         }
 
         It "Verifies Unlock-SecretStore throws expected error when in no password mode" {
-            $token = ConvertTo-SecureString -String "None" -AsPlainText -Force
+            $token = [System.Net.NetworkCredential]::new('', 'None').SecurePassword
             { Unlock-SecretStore -Password $token } | Should -Throw -ErrorId 'InvalidOperation,Microsoft.PowerShell.SecretStore.UnlockSecretStoreCommand'
         }
     }
@@ -332,7 +329,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" {
         BeforeAll {
             $secretName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetRandomFileName())
             $randomSecret = [System.IO.Path]::GetRandomFileName()
-            $secureStringToWrite = ConvertTo-SecureString -String $randomSecret -AsPlainText -Force
+            $secureStringToWrite = [System.Net.NetworkCredential]::new('', $randomSecret).SecurePassword
             $errorMsg = ""
         }
 
@@ -398,7 +395,7 @@ Describe "Test Microsoft.PowerShell.SecretStore module" {
         }
 
         It "Verifies PSCredential type write to SecretStore" {
-            $cred = [pscredential]::new('UserL', (ConvertTo-SecureString $randomSecret -AsPlainText -Force))
+            $cred = [pscredential]::new('UserL', ([System.Net.NetworkCredential]::new('', $randomSecret).SecurePassword))
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
                 $secretName,
                 $cred,
@@ -465,8 +462,8 @@ Describe "Test Microsoft.PowerShell.SecretStore module" {
             $ht = @{
                 Blob = ([byte[]] @(1,2))
                 Str = "TestHashtableString"
-                SecureString = (ConvertTo-SecureString $randomSecretA -AsPlainText -Force)
-                Cred = ([pscredential]::New("UserA", (ConvertTo-SecureString $randomSecretB -AsPlainText -Force)))
+                SecureString = ([System.Net.NetworkCredential]::new('', $randomSecretA).SecurePassword)
+                Cred = ([pscredential]::New("UserA", ([System.Net.NetworkCredential]::new('', $randomSecretB).SecurePassword)))
             }
 
             $success = [Microsoft.PowerShell.SecretStore.LocalSecretStore]::GetInstance().WriteObject(
