@@ -1,6 +1,9 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'Tests create SecureStrings from known test data')]
+param()
+
 Describe "Test Microsoft.PowerShell.SecretStore module" {
     BeforeAll {
         Import-Module -Force -Name Microsoft.PowerShell.SecretManagement
