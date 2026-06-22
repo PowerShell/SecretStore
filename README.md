@@ -1,5 +1,17 @@
 # PowerShell SecretStore module
 
+> [!IMPORTANT]
+> The PowerShell team has decided that `Microsoft.PowerShell.SecretStore` is feature complete, so [1.0.6](https://www.powershellgallery.com/packages/Microsoft.PowerShell.SecretStore/1.0.6) will be the last feature release.
+>
+> The nature of secrets has fundamentally changed since this project was designed.
+> Passwordless authentication methods such as passkeys, single sign-on and federated credential systems such as Microsoft Entra ID, biometrics, and hardware security keys are the future — and they aren't something this project can meaningfully support in its current form.
+>
+> While we will no longer be adding features, we remain committed to addressing security issues in the module.
+>
+> This extension vault is being retired alongside [Microsoft.PowerShell.SecretManagement](https://github.com/PowerShell/SecretManagement/issues/247) — see the announcement there for details.
+>
+> Please expect this repository to be archived in the coming weeks. Thank you for all of your contributions. 🙏
+
 This module is an extension vault for the [PowerShell SecretManagement](https://github.com/PowerShell/SecretManagement) module.
 It stores secrets locally on file for the current user account context, and uses .NET crypto APIs to encrypt file contents.
 Secrets remain encrypted in-memory, and are only decrypted when retrieved and passed to the user.
