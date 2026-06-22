@@ -9,8 +9,6 @@
 > While we will no longer be adding features, we remain committed to addressing security issues in the module.
 >
 > This extension vault is being retired alongside [Microsoft.PowerShell.SecretManagement](https://github.com/PowerShell/SecretManagement/issues/247) — see the announcement there for details.
->
-> Please expect this repository to be archived in the coming weeks. Thank you for all of your contributions. 🙏
 
 This module is an extension vault for the [PowerShell SecretManagement](https://github.com/PowerShell/SecretManagement) module.
 It stores secrets locally on file for the current user account context, and uses .NET crypto APIs to encrypt file contents.
