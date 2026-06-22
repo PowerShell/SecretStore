@@ -7,6 +7,7 @@
 > Passwordless authentication methods such as passkeys, single sign-on and federated credential systems such as Microsoft Entra ID, biometrics, and hardware security keys are the future — and they aren't something this project can meaningfully support in its current form.
 >
 > While we will no longer be adding features, we remain committed to addressing security issues in the module.
+> For any security issues, please see our [Security Policy](.github/SECURITY.md).
 >
 > This extension vault is being retired alongside [Microsoft.PowerShell.SecretManagement](https://github.com/PowerShell/SecretManagement/issues/247) — see the announcement there for details.
 
@@ -90,7 +91,3 @@ This cmdlet is intended for cases where the password is forgotten, or store file
 ## Code of Conduct
 
 Please see our [Code of Conduct](.github/CODE_OF_CONDUCT.md) before participating in this project.
-
-## Security Policy
-
-For any security issues, please see our [Security Policy](.github/SECURITY.md).
